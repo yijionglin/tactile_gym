@@ -69,7 +69,9 @@ ppo_params = {
             "cnn_output_dim": 256,
             "mlp_extractor_net_arch": [64, 64],
         },
-        "net_arch": dict(pi=[256, 256], vf=[256, 256]),
+        # "net_arch": dict(pi=[256, 256], vf=[256, 256]),
+        "net_arch": [dict(pi=[256, 256], vf=[256, 256])],
+        
         "activation_fn": nn.Tanh,
     },
     "learning_rate": 3e-4,

@@ -9,13 +9,14 @@ from tactile_gym.sb3_helpers.params import import_parameters
 from tactile_gym.sb3_helpers.rl_utils import make_training_envs, make_eval_env
 from tactile_gym.sb3_helpers.eval_agent import final_evaluation
 
-from tactile_learning.utils.utils_learning import save_json_obj, convert_json, make_dir
+# from tactile_learning.utils.utils_learning import save_json_obj, convert_json, make_dir
+from tactile_gym.utils.utils_learning import save_json_obj, convert_json, check_dir
 
 from tactile_gym.sb3_helpers.custom.custom_callbacks import (
     FullPlottingCallback,
     ProgressBarManager,
 )
-
+from ipdb import set_trace
 
 def train_agent(
     algo_name="ppo",
@@ -30,16 +31,18 @@ def train_agent(
         "saved_models/", rl_params["env_id"], algo_name, "s{}_{}".format(
             rl_params["seed"], env_args["env_params"]["observation_mode"])
     )
-    make_dir(save_dir)
-
+    # make_dir(save_dir)
+    check_dir(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
     # save params
     save_json_obj(convert_json(rl_params), os.path.join(save_dir, "rl_params"))
     save_json_obj(convert_json(algo_params), os.path.join(save_dir, "algo_params"))
     save_json_obj(convert_json(env_args), os.path.join(save_dir, "env_args"))
 
     # load the envs
+    print(env_id)
     env = make_training_envs(env_id, env_args, rl_params, save_dir)
-
+    
     eval_env = make_eval_env(
         env_id,
         env_args,
@@ -102,8 +105,8 @@ if __name__ == "__main__":
     algo_name = 'ppo'
     # algo_name = 'sac'
 
-    # env_id = "edge_follow-v0"
-    env_id = 'surface_follow-v0'
+    env_id = "edge_follow-v0"
+    # env_id = 'surface_follow-v0'
     # env_id = 'object_roll-v0'
     # env_id = "object_push-v0"
     # env_id = 'object_balance-v0'

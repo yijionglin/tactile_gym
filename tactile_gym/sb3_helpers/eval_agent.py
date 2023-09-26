@@ -7,8 +7,8 @@ import stable_baselines3 as sb3
 
 import tactile_gym.envs
 from tactile_gym.sb3_helpers.rl_utils import make_eval_env
-from tactile_learning.utils.utils_learning import load_json_obj
-
+# from tactile_learning.utils.utils_learning import load_json_obj
+from tactile_gym.utils.utils_learning import load_json_obj
 
 def eval_and_save_vid(
     model, env, saved_model_dir, n_eval_episodes=10, deterministic=True, render=False, save_vid=False, take_snapshot=False
