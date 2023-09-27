@@ -9,7 +9,7 @@ import cv2
 from tactile_sim.utils.setup_pb_utils import load_standard_environment, load_standard_bitouch_environment
 from tactile_sim.utils.pybullet_draw_utils import draw_frame, draw_box
 from tactile_sim.utils.transforms import inv_transform_eul, transform_eul, inv_transform_vec_eul, transform_vec_eul
-
+from ipdb import set_trace
 tcp_action_mapping = {
     'x': 0, 'y': 1, 'z': 2,
     'Rx': 3, 'Ry': 4, 'Rz': 5,
@@ -33,6 +33,7 @@ class BaseBitouchTactileEnv(gym.Env):
         self._max_blocking_pos_move_steps = 10
 
         self._env_params = env_params
+        
         self._robot_arm_params = robot_arm_params
         self._tactile_sensor_params = tactile_sensor_params
         self._visual_sensor_params = visual_sensor_params
@@ -140,7 +141,6 @@ class BaseBitouchTactileEnv(gym.Env):
     def setup_observation_space(self):
 
         obs_dim_dict = self.get_obs_dim()
-
         spaces = {
             "oracle": gym.spaces.Box(low=-np.inf, high=np.inf, shape=obs_dim_dict["oracle"], dtype=np.float32),
             "tactile": gym.spaces.Box(low=0, high=255, shape=obs_dim_dict["tactile"], dtype=np.uint8),
@@ -189,29 +189,29 @@ class BaseBitouchTactileEnv(gym.Env):
         return obs_dim_dict
 
     def get_act_dim(self):
-        return 2*len(self._robot_arm_params["control_dofs"])
+        return len(self._robot_arm_params["control_dofs"])
 
-    def encode_actions(self, actions):
-        """
-        Return actions as np.array in correct places for sending to robot arm
-        i.e. NN could be predicting [y, Rz] actions. Make sure they are in
-        correct place [1, 5].
-        """
+    # def encode_actions(self, actions):
+    #     """
+    #     Return actions as np.array in correct places for sending to robot arm
+    #     i.e. NN could be predicting [y, Rz] actions. Make sure they are in
+    #     correct place [1, 5].
+    #     """
 
-        if 'tcp' in self._robot_arm_params['control_mode']:
-            encoded_actions = np.zeros(6)
-            for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
-                encoded_actions[tcp_action_mapping[control_dof]] = actions[i]
+    #     if 'tcp' in self._robot_arm_params['control_mode']:
+    #         encoded_actions = np.zeros(6)
+    #         for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
+    #             encoded_actions[tcp_action_mapping[control_dof]] = actions[i]
 
-        elif 'joint' in self._robot_arm_params['control_mode']:
-            encoded_actions = np.zeros(self.embodiment.arm.num_control_dofs)
-            for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
-                encoded_actions[joint_action_mapping[control_dof]] = actions[i]
+    #     elif 'joint' in self._robot_arm_params['control_mode']:
+    #         encoded_actions = np.zeros(self.embodiment.arm.num_control_dofs)
+    #         for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
+    #             encoded_actions[joint_action_mapping[control_dof]] = actions[i]
 
-        else:
-            sys.exit("Incorrect control_mode specified")
+    #     else:
+    #         sys.exit("Incorrect control_mode specified")
 
-        return encoded_actions
+    #     return encoded_actions
 
     def scale_actions(self, actions):
         """Scale actions from input range to range specific to actions space."""
@@ -287,27 +287,11 @@ class BaseBitouchTactileEnv(gym.Env):
         Encode actions, send to embodiment to be applied to the environment.
         Return observation, reward, terminal, info
         """
-        if not self.if_bitouch:
-            # scale and embed actions appropriately
-            encoded_actions = self.encode_actions(action)
-            scaled_actions = self.scale_actions(encoded_actions)
-            transformed_actions = self.transform_actions(scaled_actions)
-
-            # send action
-            self._env_step_counter += 1
-            self.apply_action(
-                transformed_actions,
-                control_mode=self._robot_arm_params["control_mode"],
-                velocity_action_repeat=self._velocity_action_repeat,
-                max_steps=self._max_blocking_pos_move_steps,
-            )
-            # get data
-            reward, done = self.get_step_data()
-            self._observation = self.get_observation()
-            return self._observation, reward, done, {}
-        else:
-            self.step_bi_touch(action)
-
+        self.step_bi_touch(action)
+        reward, done = self.get_step_data()
+        self._observation = self.get_observation()
+        return self._observation, reward, done, {}
+    
     def step_bi_touch(self, actions, count_step=True):
         # act
         # self.task_callback()
@@ -320,17 +304,18 @@ class BaseBitouchTactileEnv(gym.Env):
 
         else:
             assert ("Movement mode not implement yet",self.movement_mode)
-        robots_list = [self.embodiment_0, self.embodiment_1]
-        
+        embodiments_list = [self.embodiment_0, self.embodiment_1]
         # print("actions:",actions)
         # set_trace()
         # scale and embed actions appropriately
-        for robot, act in zip(robots_list, actions_list):
-            encoded_action = self.encode_actions(act, robot)
+        for embodiment, act in zip(embodiments_list, actions_list):
+            # set_trace()
+            encoded_action = self.encode_actions(act, embodiment)
             scaled_action = self.scale_actions(encoded_action)
-            robot.apply_action(
-                scaled_action,
-                control_mode=self.control_mode,
+            self.apply_action(
+                motor_commands = scaled_action,
+                embodiment = embodiment,
+                control_mode=self._robot_arm_params["control_mode"],
                 velocity_action_repeat=self._velocity_action_repeat,
                 max_steps=self._max_blocking_pos_move_steps,
             )
@@ -357,36 +342,45 @@ class BaseBitouchTactileEnv(gym.Env):
 
     def apply_action(
         self,
+        embodiment,
         motor_commands,
         control_mode="tcp_velocity_control",
         velocity_action_repeat=1,
         max_steps=100,
     ):
-
         # set the simulation with desired control points
         if control_mode == "tcp_position_control":
-            self.embodiment.arm.set_target_tcp_pose(motor_commands)
+            embodiment.arm.set_target_tcp_pose(motor_commands)
         elif control_mode == "tcp_velocity_control":
-            self.embodiment.arm.set_target_tcp_velocities(motor_commands)
+            embodiment.arm.set_target_tcp_velocities(motor_commands)
         elif control_mode == "joint_position_control":
-            self.embodiment.arm.set_target_joint_positions(motor_commands)
+            embodiment.arm.set_target_joint_positions(motor_commands)
         elif control_mode == "joint_velocity_control":
-            self.embodiment.arm.set_target_joint_velocities(motor_commands)
+            embodiment.arm.set_target_joint_velocities(motor_commands)
         else:
             sys.exit("Incorrect control mode specified: {}".format(control_mode))
 
         # run the simulation for a number of steps
         if "position" in control_mode:
-            self.embodiment.arm.blocking_position_move(
+            embodiment.arm.blocking_position_move(
                 max_steps=max_steps,
                 constant_vel=None,
                 j_pos_tol=1e-6,
                 j_vel_tol=1e-3,
             )
         elif "velocity" in control_mode:
-            self.embodiment.arm.blocking_velocity_move(blocking_steps=velocity_action_repeat)
+            embodiment.arm.blocking_velocity_move(blocking_steps=velocity_action_repeat)
         else:
             self.step_sim()
+
+    # def get_robot_current_tcp_pos_vel_workframe(self, embodiment):
+    #     cur_tcp_pose = self.embodiment.arm.get_tcp_pose()
+    #     cur_tcp_pose_workframe = self.worldframe_to_workframe(cur_tcp_pose)
+    #     tcp_pos_workframe_robot = cur_tcp_pose_workframe[:3]
+    #     tcp_rpy_workframe_robot = cur_tcp_pose_workframe[3:]
+    #     return tcp_pos_workframe_robot, tcp_rpy_workframe_robot
+
+
 
     def worldframe_to_workframe(self, pose):
         return transform_eul(pose, self._workframe)
@@ -486,7 +480,7 @@ class BaseBitouchTactileEnv(gym.Env):
         """
         Returns the rgb image from a static environment camera.
         """
-        visual_rgba, _, _ = self.embodiment.get_visual_observation()
+        visual_rgba, _, _ = self.embodiment_0.get_visual_observation()
         return visual_rgba[..., :3]
 
     def get_observation(self):
@@ -495,7 +489,7 @@ class BaseBitouchTactileEnv(gym.Env):
         """
 
         observation_mode = self._env_params["observation_mode"]
-
+        
         # check correct obs type set
         if observation_mode not in [
             "oracle",

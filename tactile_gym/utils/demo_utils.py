@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pybullet as pb
-
+from ipdb import set_trace
 
 def demo_rl_env(env, num_iter, action_ids, show_gui, render, print_info=False):
     """
@@ -29,7 +29,6 @@ def demo_rl_env(env, num_iter, action_ids, show_gui, render, print_info=False):
                     a.append(pb.readUserDebugParameter(action_id))
             else:
                 a = env.action_space.sample()
-
             # step the environment
             o, r, d, info = env.step(a)
 

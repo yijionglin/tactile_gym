@@ -16,12 +16,11 @@ from tactile_gym.envs.bitouch.base_bitouch_object_env import BaseBitouchObjectEn
 from ipdb import set_trace
 import cv2
 
-from ipdb import set_trace
 
 
 env_modes_default={
     'movement_mode':'yRz',
-    'control_mode':'TCP_velocity_control',
+    'control_mode':'tcp_velocity_control',
     'rand_obj_mass': False,
     'traj_type': 'simplex',
     'observation_mode':'oracle',
@@ -32,11 +31,6 @@ env_modes_default={
 class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
     def __init__(
         self,
-        # max_steps=1000,
-        # image_size=[64, 64],
-        # env_modes=env_modes_default,
-        # show_gui=False,
-        # show_tactile=False,
         env_params={},
         robot_arm_params={},
         tactile_sensor_params={},
@@ -48,13 +42,16 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         self.termination_pos_dist = 0.025
         self.termination_orn_dist = 0.035
         self.visualise_goal = False
+        self.goal_line_id = None
         self.embed_dist = embed_dist
         self.obj_width = 0.06
         self.obj_length = 0.06
         self.obj_height = 0.1
         self.eval_ang_dist_list = []
         self.if_draw_indicator_line = True
-
+        self.first_time_embed_dist_random = True
+        self.if_use_obj_xy_info = 1
+        self.if_use_obj_Rz_info = 1
         
         # add environment specific env parameters
         env_params["workframe"] = np.array([0.0, 0.0, 0.1 + self.obj_height/2, -np.pi, 0.0, np.pi/2])
@@ -66,18 +63,19 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         TCP_lims_robot[3, 0], TCP_lims_robot[3, 1] = -0.0, 0.0  # roll lims
         TCP_lims_robot[4, 0], TCP_lims_robot[4, 1] = -0.0, 0.0  # pitch lims
         TCP_lims_robot[5, 0], TCP_lims_robot[5, 1] = -100 * np.pi / 180, 100 * np.pi / 180  # yaw lims
-        TCP_lims_robot_2 = TCP_lims_robot.copy()
-        TCP_lims_robot_2[0, 0], TCP_lims_robot_2[0, 1] = 0.01, 0.10  # x lims
-        TCP_lims_robot_2[5, 0], TCP_lims_robot_2[5, 1] = (-100-180) * np.pi / 180, (100-180) * np.pi / 180  # yaw lims
-        TCP_lims_list = [TCP_lims_robot, TCP_lims_robot_2]
+        TCP_lims_robot_1 = TCP_lims_robot.copy()
+        TCP_lims_robot_1[0, 0], TCP_lims_robot_1[0, 1] = 0.01, 0.10  # x lims
+        TCP_lims_robot_1[5, 0], TCP_lims_robot_1[5, 1] = (-100-180) * np.pi / 180, (100-180) * np.pi / 180  # yaw lims
+        TCP_lims_list = [TCP_lims_robot, TCP_lims_robot_1]
         env_params["tcp_lims"] = TCP_lims_list
+        self.rand_obj_mass = env_params["rand_obj_mass"]
+        self.traj_type = env_params["traj_type"]
 
         # add environment specific robot arm parameters
         robot_arm_params["use_tcp_frame_control"] = True
         robot_arm_params["rest_poses"] = rest_poses_dict[robot_arm_params["type"]][tactile_sensor_params["type"]]
         robot_arm_params["base_pos_and_init_pos"] = EEs_poses_sets[robot_arm_params["type"]]
         robot_arm_params["base_rpy_and_init_rpy"] = EEs_poses_sets[robot_arm_params["type"]]
-        set_trace()
         robot_arm_params["tcp_link_name"] = "tcp_link"
         
         # add environment specific tactile sensor parameters
@@ -95,22 +93,12 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         visual_sensor_params["near_val"] = 0.1
         visual_sensor_params["far_val"] = 100.0
 
-        # object infos
-
-        self.if_draw_indicator_line = True
-        self.first_time_embed_dist_random = True
-        self.if_use_obj_xy_info = 1
-        self.if_use_obj_Rz_info = 1
-
-        # pull params from env_modes specific to push env
-        self.rand_obj_mass = env_params["rand_obj_mass"]
-        self.traj_type = env_params["traj_type"]
-
-        set_trace()
         super(BitouchObjectLiftEnv, self).__init__(env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params)
         if self.if_draw_indicator_line:
             self.load_goal_line()
-
+        a_dim = int(len(robot_arm_params['control_dofs'])/2)
+        self.movement_mode = ''.join(robot_arm_params['control_dofs'][:a_dim])
+        
     def load_goal_line(self):
         self.goal_line_id = self._pb.loadURDF(
             self.goal_line_path, self.init_obj_pos, self.init_obj_orn, useFixedBase=True
@@ -156,43 +144,6 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             childFrameOrientation=self._pb.getQuaternionFromEuler([0, 0, 0]),
         )
         
-
-    def setup_action_space(self):
-        """
-        Sets variables used for making network predictions and
-        sending correct actions to robot from raw network predictions.
-        """
-        # these are used for bounds on the action space in SAC and clipping
-        # range for PPO
-        self.min_action, self.max_action = -0.25, 0.25
-
-        # define action ranges per act dim to rescale output of policy
-        if self.control_mode == "TCP_position_control":
-
-            max_pos_change = 0.001  # m per step
-            max_ang_change = 1 * (np.pi / 180)  # rad per step
-
-            self.x_act_min, self.x_act_max = -max_pos_change, max_pos_change
-            self.y_act_min, self.y_act_max = -max_pos_change, max_pos_change
-            self.z_act_min, self.z_act_max = -max_pos_change, max_pos_change
-            self.roll_act_min, self.roll_act_max = -0, 0
-            self.pitch_act_min, self.pitch_act_max = -0, 0
-            self.yaw_act_min, self.yaw_act_max = -max_ang_change, max_ang_change
-
-        elif self.control_mode == "TCP_velocity_control":
-
-            # max_pos_vel = 0.01  # m/s
-            max_pos_vel = 0.005  # m/s
-            # max_ang_vel = 5.0 * (np.pi / 180)  # rad/s
-            max_ang_vel = 10.0 * (np.pi / 180)  # rad/s
-
-            self.x_act_min, self.x_act_max = -max_pos_vel, max_pos_vel
-            self.y_act_min, self.y_act_max = -max_pos_vel, max_pos_vel
-            self.z_act_min, self.z_act_max = -max_pos_vel, max_pos_vel
-            self.roll_act_min, self.roll_act_max = -0, 0
-            self.pitch_act_min, self.pitch_act_max = -0, 0
-            self.yaw_act_min, self.yaw_act_max = -max_ang_vel, max_ang_vel
-
 
     def setup_rgb_obs_camera_params(self):
         self.rgb_cam_pos = [-0.55, 0.0, -0.85]
@@ -274,17 +225,15 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
         # The init pose of object is defined in world space
         # define an initial position for the objects (world coords)
-        self.init_obj_pos =self.workframe_pos
-
+        self.init_obj_pos =self._workframe[:3]
         # The object initial orientation needs to be consistent with the work frame
-        self.init_obj_rpy = self.workframe_rpy
+        self.init_obj_rpy = self._workframe[3:]
         self.init_obj_orn = self._pb.getQuaternionFromEuler(self.init_obj_rpy)
 
         # get paths
-        self.object_path = add_assets_path("rl_env_assets/marl_manipulation/object_lift/cube_6.urdf")
-
+        self.object_path = add_assets_path("bitouch/bireorient_obj/cube_6.urdf")
+        self.goal_line_path = add_assets_path("bitouch/bireorient_obj/goal_indicator.urdf")
         self.goal_path = add_assets_path("shared_assets/environment_objects/goal_indicators/sphere_indicator.urdf")
-        self.goal_line_path = add_assets_path("rl_env_assets/marl_manipulation/object_lift/goal_indicator.urdf")
 
 
     def full_reset(self):
@@ -306,19 +255,18 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         Reset the base pose of an object on reset,
         can also adjust physics params here.
         """
-        # set_trace()
         self.eval_ang_dist_list = []
         self._pb.removeBody(self.obj_id)
-        self._pb.removeBody(self.goal_line_id)
+        if self.goal_line_id is not None:
+            self._pb.removeBody(self.goal_line_id)
         
         # cube_urdf_id = self.np_random.randint(5,20)
         cube_urdf_id = self.np_random.randint(5,15)
         cube_urdf_id = 10
         print("testing on object :", cube_urdf_id)
-
-        object_path = "rl_env_assets/marl_manipulation/object_lift/cube_" + str(cube_urdf_id) + ".urdf"
+        object_path = "bitouch/bireorient_obj/cube_" + str(cube_urdf_id) + ".urdf"
         self.object_path = add_assets_path(object_path)
-
+        
         # print("cube_urdf_id:",cube_urdf_id)
         self.obj_length = 0.01 * cube_urdf_id
 
@@ -335,10 +283,9 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             self.object_path, self.init_obj_pos, self.init_obj_orn
         )
         self._pb.changeVisualShape(self.obj_id, -1, rgbaColor=[1-(cube_urdf_id-5)/10, 0,(cube_urdf_id-5)/10 , 1])
-        self.embodiment_0.update_init_pos[0] = -self.obj_length/2 
+        self.embodiment_0.update_init_pose[0] = -self.obj_length/2 
 
-        self.embodiment_1.update_init_pos[0] = self.obj_length/2 
-
+        self.embodiment_1.update_init_pose[0] = self.obj_length/2 
         self.goal_line_id = self._pb.loadURDF(
             self.goal_line_path, self.init_obj_pos, self.init_obj_orn,useFixedBase=True
         )
@@ -441,13 +388,15 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
             # convert worldframe
             # traj_pos_workframe and traj_rpy_workframe are defined in workframe.
-            pos_worldframe, rpy_worldframe = self.embodiment_0.arm.workframe_to_worldframe(
-                self.traj_pos_workframe[i], self.traj_rpy_workframe[i]
-            )
+            
+            pose_worldframe = self.workframe_to_worldframe(
+                np.array([x for x in self.traj_pos_workframe[i]] + [x for x in self.traj_rpy_workframe[i]]) 
+                )
+            pos_worldframe = pose_worldframe[:3]
+            rpy_worldframe = pose_worldframe[3:]
             orn_worldframe = self._pb.getQuaternionFromEuler(rpy_worldframe)
 
             # place goal
-            # set_trace()
             self._pb.resetBasePositionAndOrientation(
                 self.traj_ids[i], pos_worldframe, orn_worldframe
             )
@@ -665,9 +614,9 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         encoded_actions = np.zeros(6)
         # get rotation matrix from current tip orientation
         if robot.if_main_robot == True:
-            tip_rot_matrix = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot) #this cur_tcp_orn_worldframe_robot is got from get_step_data()
+            tip_rot_matrix = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_0) #this cur_tcp_orn_worldframe_robot——0 is got from get_step_data()
         elif robot.if_main_robot == False:
-            tip_rot_matrix = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_2) #this cur_tcp_orn_worldframe_robot_2 is got from get_step_data()
+            tip_rot_matrix = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_1) #this cur_tcp_orn_worldframe_robot_1 is got from get_step_data()
             actions[0] = -actions[0]
         else:
             assert "Error: no robot are found."
@@ -763,44 +712,44 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         # set_trace()
         return encoded_actions
 
-    def get_observation(self):
-        """
-        Returns the observation dependent on which mode is set.
-        """
-        # init obs dict
-        observation = {}
+    # def get_observation(self):
+    #     """
+    #     Returns the observation dependent on which mode is set.
+    #     """
+    #     # init obs dict
+    #     observation = {}
 
-        # check correct obs type set
-        if self.observation_mode not in [
-            'oracle',
-            'tactile',
-            'visual',
-            'visuotactile',
-            'tactile_and_feature',
-            'visual_and_feature',
-            'visuotactile_and_feature',
-        ]:
-            sys.exit(
-                "Incorrect observation mode specified: {}".format(self.observation_mode)
-            )
+    #     # check correct obs type set
+    #     if self.observation_mode not in [
+    #         'oracle',
+    #         'tactile',
+    #         'visual',
+    #         'visuotactile',
+    #         'tactile_and_feature',
+    #         'visual_and_feature',
+    #         'visuotactile_and_feature',
+    #     ]:
+    #         sys.exit(
+    #             "Incorrect observation mode specified: {}".format(self.observation_mode)
+    #         )
 
-        # use direct pose info to check if things are working
-        if "oracle" in self.observation_mode:
-            observation['oracle'] = self.get_oracle_obs()
+    #     # use direct pose info to check if things are working
+    #     if "oracle" in self.observation_mode:
+    #         observation['oracle'] = self.get_oracle_obs()
 
-        # observation is just the tactile sensor image
-        if "tactile" in self.observation_mode:
-            observation['tactile'] = self.get_tactile_obs()
+    #     # observation is just the tactile sensor image
+    #     if "tactile" in self.observation_mode:
+    #         observation['tactile'] = self.get_tactile_obs()
 
-        # observation is rgb environment camera image
-        if any(obs in self.observation_mode for obs in ["visual", "visuo"]):
-            observation['visual'] = self.get_visual_obs()
+    #     # observation is rgb environment camera image
+    #     if any(obs in self.observation_mode for obs in ["visual", "visuo"]):
+    #         observation['visual'] = self.get_visual_obs()
 
-        # observation is mix image + features (pretending to be image shape)
-        if "feature" in self.observation_mode:
-            observation['extended_feature'] = self.get_extended_feature_array()
+    #     # observation is mix image + features (pretending to be image shape)
+    #     if "feature" in self.observation_mode:
+    #         observation['extended_feature'] = self.get_extended_feature_array()
 
-        return observation
+    #     return observation
 
     def get_tactile_obs(self):
         """
@@ -894,40 +843,70 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             encoded_actions = self.encode_TCP_frame_actions(actions, robot)
         return encoded_actions
 
+    def get_pos_rpy_orn_from_pose(self, pose):
+        pos =  pose[:3]
+        rpy =  pose[3:]
+        orn = self._pb.getQuaternionFromEuler(rpy)
+        return np.array(pos), np.array(rpy), np.array(orn)
+
+    def get_two_robots_current_states(self):
+        # Robot_0 pose in world and work frames.
+        self.cur_tcp_pose_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_pose()
+        self.cur_tcp_pose_workframe_robot_0 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_0)
+        
+        (
+            self.cur_tcp_pos_worldframe_robot_0 ,
+            self.cur_tcp_rpy_worldframe_robot_0,
+            self.cur_tcp_orn_worldframe_robot_0,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_0)
+        (
+            self.cur_tcp_pos_workframe_robot_0 ,
+            self.cur_tcp_rpy_workframe_robot_0,
+            self.cur_tcp_orn_workframe_robot_0,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_0)
+
+        # Robot_0 twist in world and work frames.
+        self.cur_tcp_vel_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_vel()
+        self.cur_tcp_vel_workframe_robot_0 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_0)
+
+        # Robot_1 pose in world and work frames.
+        self.cur_tcp_pose_worldframe_robot_1 = self.embodiment_1.arm.get_tcp_pose()
+        self.cur_tcp_pose_workframe_robot_1 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_1)
+        
+        (
+            self.cur_tcp_pos_worldframe_robot_1 ,
+            self.cur_tcp_rpy_worldframe_robot_1,
+            self.cur_tcp_orn_worldframe_robot_1,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_1)
+        (
+            self.cur_tcp_pos_workframe_robot_1 ,
+            self.cur_tcp_rpy_workframe_robot_1,
+            self.cur_tcp_orn_workframe_robot_1,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_1)
+
+        # Robot_1 twist in world and work frames.
+        self.cur_tcp_vel_worldframe_robot_1 = self.embodiment_0.arm.get_tcp_vel()
+        self.cur_tcp_vel_workframe_robot_1 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_1)
+
     def get_step_data(self):
+        # For computing the reward as well as for  the observation.
 
-        # get the cur tip pos here for once per step
-        (
-            self.cur_tcp_pos_worldframe_robot,# not used
-            # self.cur_tcp_rpy_worldframe_robot,# not used
-            _,
-            self.cur_tcp_orn_worldframe_robot, #used for calc the par and perp vel of the tactip in workframe
-            _,
-            _,
-        ) = self.embodiment_0.arm.get_current_TCP_pos_vel_worldframe()
+        # get state of tcp and obj per step
 
+        self.get_two_robots_current_states()
 
-        (
-            self.cur_tcp_pos_worldframe_robot_2,# not used
-            # self.cur_tcp_rpy_worldframe_robot_2,# not used
-            _,
-            self.cur_tcp_orn_worldframe_robot_2, #used for calc the par and perp vel of the tactip in workframe
-            _,
-            _,
-        ) = self.embodiment_1.arm.get_current_TCP_pos_vel_worldframe()
+        self.cur_obj_pose_worldframe = self.get_obj_pose_worldframe()
+        (self.cur_obj_pos_workframe, 
+         self.cur_obj_rpy_workframe, 
+         self.cur_obj_orn_workframe
+        ) = self.get_obj_pos_rpy_orn_workframe()
 
+        (self.cur_obj_pos_worldframe, 
+         self.cur_obj_rpy_worldframe, 
+         self.cur_obj_orn_worldframe
+        ) = self.get_obj_pos_rpy_orn_worldframe()
 
-        (
-            self.cur_obj_pos_worldframe, # used for calc xyz_obj_dist_to_goal for reward
-            self.cur_obj_orn_worldframe, # used for calc cos_tcp_dist_to_obj for reward
-        ) = self.get_obj_pos_worldframe()
-
-        if self.reward_mode == "sparse":
-            assert "Error: sparse reward not defined in marl env"
-            reward = self.sparse_reward()
-
-        elif self.reward_mode == "dense":
-            reward = self.dense_reward()
+        reward = self.get_reward()
 
         # get rl info
         done = self.termination()
@@ -950,7 +929,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_scp_cur_vector_objfrmae = obj_rot_matrix.dot(obj_scp_init_vector_objframe)
         obj_scp_cur_vector_worldframe = self.cur_obj_pos_worldframe + obj_scp_cur_vector_objfrmae
         #  compute the SCP distance to the robot_2 tactip
-        dist_2 = self.two_points_xy_dist(self.cur_tcp_pos_worldframe_robot_2, obj_scp_cur_vector_worldframe)
+        dist_2 = self.two_points_xy_dist(self.cur_tcp_pos_worldframe_robot_1, obj_scp_cur_vector_worldframe)
         
 
         # get SCP vector of the object for robot_1
@@ -959,7 +938,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_scf_cur_vector_objfrmae = obj_rot_matrix.dot(obj_scf_init_vector_objframe)
         obj_scf_cur_vector_worldframe = self.cur_obj_pos_worldframe + obj_scf_cur_vector_objfrmae
         #  compute the SCP distance to the robot_1 tactip
-        dist_1 = self.two_points_xy_dist(self.cur_tcp_pos_worldframe_robot, obj_scf_cur_vector_worldframe)
+        dist_1 = self.two_points_xy_dist(self.cur_tcp_pos_worldframe_robot_0, obj_scf_cur_vector_worldframe)
 
         # print("dist_1:",dist_1)
         # print("dist_2:",dist_2)
@@ -980,7 +959,6 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_rot_matrix = np.array(obj_rot_matrix).reshape(3, 3)
 
         # get SCP vector of the object for robot_2
-
         obj_scp_init_vector_objframe = np.array([self.obj_length/2, 0, 0])
         obj_scp_cur_vector_objfrmae = obj_rot_matrix.dot(obj_scp_init_vector_objframe)
         obj_scp_cur_vector_worldframe = self.cur_obj_pos_worldframe + obj_scp_cur_vector_objfrmae
@@ -1040,7 +1018,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_vector = obj_rot_matrix.dot(obj_init_vector)
 
         # get vector of tactip tip, directed through tip body
-        tip_rot_matrix_robot = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot)
+        tip_rot_matrix_robot = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_0)
         tip_rot_matrix_robot = np.array(tip_rot_matrix_robot).reshape(3, 3)
         tip_init_vector_robot = np.array([1, 0, 0])
         tip_vector_robot = tip_rot_matrix_robot.dot(tip_init_vector_robot)
@@ -1057,19 +1035,19 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_vector_2 = obj_rot_matrix.dot(obj_init_vector_2)
 
         # get vector of tactip tip, directed through tip body
-        tip_rot_matrix_robot_2 = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_2)
-        tip_rot_matrix_robot_2 = np.array(tip_rot_matrix_robot_2).reshape(3, 3)
-        tip_init_vector_robot_2 = np.array([1, 0, 0])
-        tip_vector_robot_2 = tip_rot_matrix_robot_2.dot(tip_init_vector_robot_2)
+        tip_rot_matrix_robot_1 = self._pb.getMatrixFromQuaternion(self.cur_tcp_orn_worldframe_robot_1)
+        tip_rot_matrix_robot_1 = np.array(tip_rot_matrix_robot_1).reshape(3, 3)
+        tip_init_vector_robot_1 = np.array([1, 0, 0])
+        tip_vector_robot_1 = tip_rot_matrix_robot_1.dot(tip_init_vector_robot_1)
 
         # get the cosine similarity/distance between the two vectors
-        cos_sim_robot_2 = np.dot(obj_vector_2, tip_vector_robot_2) / (
-            np.linalg.norm(obj_vector_2) * np.linalg.norm(tip_vector_robot_2)
+        cos_sim_robot_1 = np.dot(obj_vector_2, tip_vector_robot_1) / (
+            np.linalg.norm(obj_vector_2) * np.linalg.norm(tip_vector_robot_1)
         )
-        cos_dist_robot_2 = 1 - cos_sim_robot_2
+        cos_dist_robot_1 = 1 - cos_sim_robot_1
 
 
-        cos_dist_robots = (cos_dist_robot + cos_dist_robot_2)/2
+        cos_dist_robots = (cos_dist_robot + cos_dist_robot_1)/2
         ## draw for debugging
         # line_scale = 0.2
         # start_point = self.cur_obj_pos_worldframe
@@ -1080,7 +1058,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         # normal = tip_vector * line_scale
         # self._pb.addUserDebugLine(start_point, start_point + normal, [1, 0, 0], parentObjectUniqueId=-1, parentLinkIndex=-1, lifeTime=0.1)
         # print("cos_dist_robot",cos_dist_robot)
-        # print("cos_dist_robot_2",cos_dist_robot_2)
+        # print("cos_dist_robot_1",cos_dist_robot_1)
         
         return cos_dist_robots
 
@@ -1126,7 +1104,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
                     eval_ang_dist = goal_obj_worldframe[2] - cur_obj_rpy_worldframe[2]
                     self.eval_ang_dist_list.append(eval_ang_dist)
                     if self.goal_on_hold_step >= 10:
-                        eval_dist = np.linalg.norm(self.cur_obj_pos_worldframe[:2] - self.workframe_pos[:2]) * 1000
+                        eval_dist = np.linalg.norm(self.cur_obj_pos_worldframe[:2] - self._workframe[:2]) * 1000
                         print("final translation distance (mm): ", eval_dist )
 
                         print("final orientation distance (deg): ", np.mean(self.eval_ang_dist_list)*180/np.pi )
@@ -1135,7 +1113,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
             # terminate when max ep len reached
             if self._env_step_counter >= self._max_steps:
-                eval_dist = np.linalg.norm(self.cur_obj_pos_worldframe[:2] - self.workframe_pos[:2]) * 1000
+                eval_dist = np.linalg.norm(self.cur_obj_pos_worldframe[:2] - self._workframe[:2]) * 1000
                 print("final translation distance (mm): ", eval_dist )
                 return True
 
@@ -1161,7 +1139,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             reward = 0.0
         return reward
 
-    def dense_reward(self):
+    def get_reward(self):
         """
         Calculate the reward when in dense mode.
         """
@@ -1180,36 +1158,11 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
 
         # weights for rewards
-        W_obj_goal_pos = 1.0
         W_obj_goal_pos_z = 2.0
         W_obj_goal_orn = 1.0
         W_tip_obj_orn = 2.0
         w_TCPs_SCPs_pos_1 = 3.0
         w_TCPs_SCPs_pos_2 = 3.0
-        # set_trace()
-        # if self.goal_rpy_workframe[2]<-1.1:
-        #     if 0.01 > TCPs_SCPs_pos_dist_1 > 0.005:
-        #         w_TCPs_SCPs_pos_1 = 8.0
-        #     elif TCPs_SCPs_pos_dist_1 >= 0.01:
-        #         w_TCPs_SCPs_pos_1 = 16.0
-        #     else:
-        #         w_TCPs_SCPs_pos_1 = 3.0
-
-        #     if 0.01 > TCPs_SCPs_pos_dist_2 > 0.005:
-        #         w_TCPs_SCPs_pos_2 = 8.0
-        #     elif TCPs_SCPs_pos_dist_2 >= 0.01:
-        #         w_TCPs_SCPs_pos_2 = 16.0
-        #     else:
-        #         w_TCPs_SCPs_pos_2 = 3.0
-
-        death_reward = 0
-
-        # # # terminate if the tips are not forward
-        # cur_tcp_1_rpy = self.embodiment_0.arm.get_current_TCP_pos_vel_workframe()
-        # cur_tcp_2_rpy = self.embodiment_1.arm.get_current_TCP_pos_vel_workframe()
-        # if np.abs(cur_tcp_1_rpy[1][0])>0.1 or np.abs(cur_tcp_1_rpy[1][1])>0.1 or np.abs(cur_tcp_2_rpy[1][0])>0.1 or np.abs(cur_tcp_2_rpy[1][1])>0.1:
-        #     death_reward = -50
-
         # sum rewards with multiplicative factors
         reward = -(
             # (W_obj_goal_pos * obj_goal_pos_dist)
@@ -1218,14 +1171,13 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             + (W_tip_obj_orn * tip_obj_orn_dist)
             + (w_TCPs_SCPs_pos_1 * TCPs_SCPs_pos_dist_1)
             + (w_TCPs_SCPs_pos_2 * TCPs_SCPs_pos_dist_2)
-            # + death_reward
-            # + 0.1
         )
         # print("reward on TCP-SCP:", w_TCPs_SCPs_pos * TCPs_SCPs_pos_dist)
         # print("TCPs_SCPs_pos_dist:", TCPs_SCPs_pos_dist)
         # print("w_TCPs_SCPs_pos:", w_TCPs_SCPs_pos)
         # print("w_TCPs_SCPs_pos_1:", w_TCPs_SCPs_pos_1)
         # print("w_TCPs_SCPs_pos_2:", w_TCPs_SCPs_pos_2)
+        print(reward)
         return reward
 
     def get_oracle_obs(self):
@@ -1234,47 +1186,21 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         be enough to learn reasonable policies.
         """
         # get sim info on object
-        cur_obj_pos_workframe, cur_obj_orn_workframe = self.get_obj_pos_workframe()
-        cur_obj_rpy_workframe = self._pb.getEulerFromQuaternion(cur_obj_orn_workframe)
+
         (
             cur_obj_lin_vel_workframe,
             cur_obj_ang_vel_workframe,
         ) = self.get_obj_vel_workframe()
 
-        # get sim info on Main Robot
-        (
-            tcp_pos_workframe_mrb,
-            tcp_rpy_workframe_mrb,
-            tcp_orn_workframe_mrb,
-            tcp_lin_vel_workframe_mrb,
-            tcp_ang_vel_workframe_mrb,
-        ) = self.embodiment_0.arm.get_current_TCP_pos_vel_workframe()
-
-        # get sim info on Slave Robot
-        (
-            tcp_pos_workframe_srb,
-            tcp_rpy_workframe_srb,
-            tcp_orn_workframe_srb,
-            tcp_lin_vel_workframe_srb,
-            tcp_ang_vel_workframe_srb,
-        ) = self.embodiment_1.arm.get_current_TCP_pos_vel_workframe()
-
-
         # stack into array
         observation = np.hstack(
             [
-                *tcp_pos_workframe_mrb,
-                *tcp_rpy_workframe_mrb,
-                *tcp_lin_vel_workframe_mrb,
-                *tcp_ang_vel_workframe_mrb,
-
-                *tcp_pos_workframe_srb,
-                *tcp_rpy_workframe_srb,
-                *tcp_lin_vel_workframe_srb,
-                *tcp_ang_vel_workframe_srb,
-
-                *cur_obj_pos_workframe,
-                *cur_obj_rpy_workframe,
+                *self.cur_tcp_pose_workframe_robot_0,
+                *self.cur_tcp_vel_workframe_robot_0,
+                *self.cur_tcp_pose_workframe_robot_1,
+                *self.cur_tcp_vel_workframe_robot_1,
+                *self.cur_obj_pos_workframe,
+                *self.cur_obj_rpy_workframe,
                 *cur_obj_lin_vel_workframe,
                 *cur_obj_ang_vel_workframe,
                 *self.goal_pos_workframe,
@@ -1287,24 +1213,12 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
     def get_extended_feature_array(self):
         # get sim info on TCP
-        (
-            tcp_pos_workframe_robot,
-            tcp_rpy_workframe_robot,
-            _,
-            _,
-            _,
-        ) = self.embodiment_0.arm.get_current_TCP_pos_vel_workframe()
-
-        (
-            tcp_pos_workframe_robot_2,
-            tcp_rpy_workframe_robot_2,
-            _,
-            _,
-            _,
-        ) = self.embodiment_1.arm.get_current_TCP_pos_vel_workframe()
-
+        tcp_pos_workframe_robot_0 = self.cur_tcp_pos_workframe_robot_0
+        tcp_rpy_workframe_robot_0 = self.cur_tcp_rpy_workframe_robot_0
+        tcp_pos_workframe_robot_1 = self.cur_tcp_pos_workframe_robot_1
+        tcp_rpy_workframe_robot_1 = self.cur_tcp_rpy_workframe_robot_1
         
-        obj_pos_workframe, obj_rpy_workframe = self.get_obj_pos_rpy_workframe()
+        obj_pos_workframe, obj_rpy_workframe, _ = self.get_obj_pos_rpy_orn_workframe()
 
         obj_xy_pos_workframe = obj_pos_workframe[:2]
         obj_Rz_workframe = obj_rpy_workframe[2]
@@ -1312,41 +1226,14 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         obj_xy_pos_workframe *= self.if_use_obj_xy_info
         obj_Rz_workframe *= self.if_use_obj_Rz_info
 
+        tcp_xy_pos_workframe_robot = tcp_pos_workframe_robot_0[:2]
+        tcp_Rz_workframe_robot = tcp_rpy_workframe_robot_0[2]
 
-
-        # feature_array = np.array(
-        #     [
-        #         *tcp_pos_workframe_robot,
-        #         *tcp_rpy_workframe_robot,
-        #         *tcp_pos_workframe_robot_2,
-        #         *tcp_rpy_workframe_robot_2,
-        #         *self.goal_pos_workframe,
-        #         *self.goal_rpy_workframe,
-        #     ]
-        # )
-        # print("tcp_pos_workframe_robot:",tcp_pos_workframe_robot)
-        # print("tcp_rpy_workframe_robot:",tcp_rpy_workframe_robot)
-        # print("tcp_pos_workframe_robot_2:",tcp_pos_workframe_robot_2)
-        # print("tcp_rpy_workframe_robot_2:",tcp_rpy_workframe_robot_2)
-        # print("self.goal_pos_workframe:",self.goal_pos_workframe)
-        # print("self.goal_rpy_workframe:",self.goal_rpy_workframe)
-        # print("feature_array:",feature_array)
-        # print("obj_Rz_workframe:",obj_Rz_workframe)
-        # print("obj_xy_pos_workframe:",obj_xy_pos_workframe)
-        # print("self.if_use_obj_xy_info:",self.if_use_obj_xy_info)
-        # print("self.if_use_obj_Rz_info:",self.if_use_obj_Rz_info)
-
-
-
-
-        tcp_xy_pos_workframe_robot = tcp_pos_workframe_robot[:2]
-        tcp_Rz_workframe_robot = tcp_rpy_workframe_robot[2]
-
-        tcp_xy_pos_workframe_robot_2 = tcp_pos_workframe_robot_2[:2]
-        tcp_Rz_workframe_robot_2 = tcp_rpy_workframe_robot_2[2]
+        tcp_xy_pos_workframe_robot_1 = tcp_pos_workframe_robot_1[:2]
+        tcp_Rz_workframe_robot_1 = tcp_rpy_workframe_robot_1[2]
         # set_trace()
         # if self.largest_angle>0:
-        #     tcp_Rz_workframe_robot_2 = np.pi - tcp_Rz_workframe_robot_2
+        #     tcp_Rz_workframe_robot_1 = np.pi - tcp_Rz_workframe_robot_1
 
         # goal_x_workframe = self.goal_pos_workframe[0]
         goal_x_workframe = self.fake_goal_x_workframe
@@ -1354,13 +1241,13 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         if self.largest_angle>0:
             tcp_xy_pos_workframe_robot[1] *= -1
             tcp_Rz_workframe_robot *= -1
-            tcp_xy_pos_workframe_robot_2[1] *= -1
-            tcp_Rz_workframe_robot_2 *= -1
+            tcp_xy_pos_workframe_robot_1[1] *= -1
+            tcp_Rz_workframe_robot_1 *= -1
             goal_Rz_workframe *= -1
         # print("tcp_xy_pos_workframe_robot:",tcp_xy_pos_workframe_robot)
         # print("tcp_Rz_workframe_robot:",tcp_Rz_workframe_robot)
-        # print("tcp_xy_pos_workframe_robot_2:",tcp_xy_pos_workframe_robot_2)
-        # print("tcp_Rz_workframe_robot_2:",tcp_Rz_workframe_robot_2)
+        # print("tcp_xy_pos_workframe_robot_1:",tcp_xy_pos_workframe_robot_1)
+        # print("tcp_Rz_workframe_robot_1:",tcp_Rz_workframe_robot_1)
         # print("obj_xy_pos_workframe:",obj_xy_pos_workframe)
         # print("obj_Rz_workframe:",obj_Rz_workframe)
         # print("goal_x_workframe:",goal_x_workframe)
@@ -1370,13 +1257,12 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         # testing print
         # set_trace()
 
-
         feature_array = np.array(
             [
                 *tcp_xy_pos_workframe_robot,
                 tcp_Rz_workframe_robot,
-                *tcp_xy_pos_workframe_robot_2,
-                tcp_Rz_workframe_robot_2,
+                *tcp_xy_pos_workframe_robot_1,
+                tcp_Rz_workframe_robot_1,
                 *obj_xy_pos_workframe,  # should be 0 at testing
                 obj_Rz_workframe,    # should be 0 at testing
                 goal_x_workframe,   # should be 0 at testing

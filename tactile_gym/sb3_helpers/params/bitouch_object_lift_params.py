@@ -11,14 +11,13 @@ env_args["env_params"]["observation_mode"] = "oracle"
 # env_args["env_params"]["observation_mode"] = "visual_and_feature"
 # env_args["env_params"]["observation_mode"] = "visuotactile_and_feature"
 env_args["env_params"]["rand_obj_mass"] = 1000
-# env_args["env_params"]["traj_type"] = "straight"
-env_args["env_params"]["traj_type"] = "simplex"
+env_args["env_params"]["traj_type"] = "rotation_only"
 
 
 
 
 env_args["robot_arm_params"]["control_mode"] = "tcp_velocity_control"
-env_args["robot_arm_params"]["control_dofs"] = ["x", "y", "Rz"]
+env_args["robot_arm_params"]["control_dofs"] = ["x", "y", "Rz", "x", "y", "Rz"]
 
 rl_params_ppo["env_id"] = "bitouch_object_lift-v0"
 rl_params_ppo["total_timesteps"] = int(1e6)

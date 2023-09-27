@@ -19,6 +19,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         tactile_sensor_params={},
         visual_sensor_params={},
     ):
+        
         super(BaseBitouchObjectEnv, self).__init__(
             # max_steps, image_size, show_gui, show_tactile
             env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params
@@ -50,16 +51,12 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.load_trajectory()
         self.reset()
 
+        
         self.setup_action_space()
+        
         self.setup_observation_space()
         
 
-    def setup_action_space(self):
-        """
-        Sets variables used for making network predictions and
-        sending correct actions to robot from raw network predictions.
-        """
-        pass
 
     def setup_object(self):
         """
@@ -119,63 +116,35 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         init_TCP_rpy = np.array([0.0, 0.0, 0.0])
         return init_TCP_pos, init_TCP_rpy
 
-    def get_obj_pos_worldframe(self):
+    def get_obj_pose_worldframe(self):
+        """
+        Get the current pose of the object, return as arrays.
+        """
+        obj_pos, obj_orn = self._pb.getBasePositionAndOrientation(self.obj_id)
+        obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
+        return np.array([*obj_pos, *obj_rpy])
+
+
+    def get_obj_pos_rpy_orn_worldframe(self):
         """
         Get the current position of the object, return as arrays.
         """
         obj_pos, obj_orn = self._pb.getBasePositionAndOrientation(self.obj_id)
-        return np.array(obj_pos), np.array(obj_orn)
-
-    def get_pb_id_pos_worldframe(self, pb_id):
-        """
-        Get the current position of the object, return as arrays.
-        """
-        pb_id_pos, pb_id_orn = self._pb.getBasePositionAndOrientation(pb_id)
-        return np.array(pb_id_pos), np.array(pb_id_orn)
-
-    def get_obj_pos_workframe(self):
-        obj_pos, obj_orn = self.get_obj_pos_worldframe()
         obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
+        return np.array(obj_pos),  np.array(obj_rpy), np.array(obj_orn)
 
-        obj_pos_workframe, obj_rpy_workframe = self.embodiment_0.arm.worldframe_to_workframe(
-            obj_pos, obj_rpy
+    def get_obj_pos_rpy_orn_workframe(self):
+        obj_pos, obj_rpy, _ = self.get_obj_pos_rpy_orn_worldframe()
+
+        obj_pose_workframe = self.worldframe_to_workframe(
+            np.array([*obj_pos, *obj_rpy])
         )
+        obj_pos_workframe = obj_pose_workframe[:3]
+        obj_rpy_workframe = obj_pose_workframe[3:]
         obj_orn_workframe = self._pb.getQuaternionFromEuler(obj_rpy_workframe)
-        return obj_pos_workframe, obj_orn_workframe
+        return obj_pos_workframe, obj_rpy_workframe, obj_orn_workframe
 
-    def get_obj_pos_rpy_workframe(self):
-        obj_pos, obj_orn = self.get_obj_pos_worldframe()
-        obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
-
-        obj_pos_workframe, obj_rpy_workframe = self.embodiment_0.arm.worldframe_to_workframe(
-            obj_pos, obj_rpy
-        )
-        # obj_orn_workframe = self._pb.getQuaternionFromEuler(obj_rpy_workframe)
-        return obj_pos_workframe, obj_rpy_workframe
-
-    def get_obj_pos_rpy_workframe(self):
-        obj_pos, obj_orn = self.get_obj_pos_worldframe()
-        obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
-
-        obj_pos_workframe, obj_rpy_workframe = self.embodiment_0.arm.worldframe_to_workframe(
-            obj_pos, obj_rpy
-        )
-        obj_orn_workframe = self._pb.getQuaternionFromEuler(obj_rpy_workframe)
-        return obj_pos_workframe, obj_rpy_workframe
-
-    def get_pb_id_pos_workframe(self, pb_id, robot):
-        """
-        Get the current position of the object, return as arrays.
-        """
-        obj_pos, obj_orn = self.get_pb_id_pos_worldframe(pb_id)
-        obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
-
-        obj_pos_workframe, obj_rpy_workframe = robot.arm.worldframe_to_workframe(
-            obj_pos, obj_rpy
-        )
-        obj_orn_workframe = self._pb.getQuaternionFromEuler(obj_rpy_workframe)
-        return obj_pos_workframe, obj_orn_workframe
-
+ 
 
 
 
@@ -199,9 +168,11 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         Get the current velocity of the object, return as arrays.
         """
         obj_lin_vel, obj_ang_vel = self.get_obj_vel_worldframe()
-        obj_lin_vel, obj_ang_vel = self.embodiment_0.arm.worldvel_to_workvel(
-            obj_lin_vel, obj_ang_vel
+        obj_twist = self.worldvel_to_workvel(
+            np.array([*obj_lin_vel, *obj_ang_vel])
         )
+        obj_lin_vel =  obj_twist[:3]
+        obj_ang_vel = obj_twist[3:]
         return np.array(obj_lin_vel), np.array(obj_ang_vel)
 
     def get_pb_id_vel_workframe(self, pb_id, robot):
@@ -249,43 +220,30 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.update_workframe() # not used in pushing task
 
         # make room for the object
-        # if self.env_name == "marl_obj_lift":
-        self.embodiment_0.reset(reset_TCP_pos=[-0.12,0,0], reset_TCP_rpy=self.embodiment_0.update_init_rpy)
+        
+        reset_tcp_pose_0_workframe = np.array([x for x in [-0.12,0,0]] + [x for x in  self.embodiment_0.update_init_rpy]) 
+        reset_tcp_pose_1_workframe =  np.array([x for x in [0.12,0,0]] + [x for x in  self.embodiment_1.update_init_rpy])
+        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(reset_tcp_pose_0_workframe)
+        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(reset_tcp_pose_1_workframe)
+        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
         # self.embodiment_0.arm.draw_TCP()
-        self.embodiment_1.reset(reset_TCP_pos=[0.12,0,0], reset_TCP_rpy=self.embodiment_1.update_init_rpy)
-
-        # reset object
+        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
         self.reset_object()
-
-        # init_TCP_pos, init_TCP_rpy = self.update_init_pose()
-        self.embodiment_0.reset(reset_TCP_pos=self.embodiment_0.update_init_pos, reset_TCP_rpy=self.embodiment_0.update_init_rpy)
+        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(self.embodiment_0.update_init_pose)
+        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(self.embodiment_1.update_init_pose)
+        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
         # self.embodiment_0.arm.draw_TCP()
-        self.embodiment_1.reset(reset_TCP_pos=self.embodiment_1.update_init_pos, reset_TCP_rpy=self.embodiment_1.update_init_rpy)
-        # self.embodiment_1.arm.draw_TCP()
-
-        # print(self.embodiment_0.arm.get_current_TCP_pos_vel_workframe())
-        # print(self.embodiment_1.arm.get_current_TCP_pos_vel_workframe())
-        # self.embodiment_0.arm.print_joint_pos_vel()
-        # self.embodiment_1.arm.print_joint_pos_vel()
-        # set_trace()
-
-        # self.arm.draw_EE()
-        # self.embodiment_0.arm.draw_TCP() # only works with visuals enabled in urdf file
-        # self.embodiment_1.arm.draw_TCP() # only works with visuals enabled in urdf file
-        # self.embodiment_0.arm.draw_workframe()
-        # self.arm.draw_TCP_box()
-
-
+        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
         # define a new goal position based on init pose of object
         self.make_goal()
-
+        
         # just to change variables to the reset pose incase needed before taking
         # a step
         self.get_step_data()
-
+        
         # get the starting observation
         self._observation = self.get_observation()
-
+        
         return self._observation
 
     def full_reset(self):
@@ -301,11 +259,6 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.embodiment_1.full_reset()
         self.reset_counter = 0
 
-    def encode_actions(self, actions):
-        """
-        Return actions as np.array in correct places for sending to ur5.
-        """
-        pass
 
     def xyz_tcp_dist_to_goal(self):
         """
@@ -420,6 +373,8 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         pass
 
 
+    
+
     """
     Debugging
     """
@@ -475,3 +430,5 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
             parentLinkIndex=-1,
             lifeTime=0.1,
         )
+
+
