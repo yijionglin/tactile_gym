@@ -5,7 +5,7 @@ import pybullet as pb
 from tactile_gym.utils.demo_utils import demo_rl_env
 from tactile_gym.sb3_helpers.params import import_parameters
 import tactile_gym.envs
-
+from ipdb import set_trace
 
 def main():
 
@@ -23,12 +23,14 @@ def main():
         help="""Options: {
                 example_arm-v0,
                 edge_follow-v0, surface_follow-v0, surface_follow-v1,
-                object_roll-v0, object_push-v0, object_balance-v0}"""
+                object_roll-v0, object_push-v0, object_balance-v0,
+                bitouch_object_lift-v0}"""
     )
     args = parser.parse_args()
     env_id = args.env
 
     # import default params for env
+    
     env_args = import_parameters(env_id, None)
     env_params = env_args["env_params"]
     robot_arm_params = env_args["robot_arm_params"]
@@ -36,18 +38,18 @@ def main():
     visual_sensor_params = env_args["visual_sensor_params"]
 
     # overwrite default params for testing
-    env_params["max_steps"] = 10_000
+    env_params["max_steps"] = 10000
     env_params["show_gui"] = True
     env_params["observation_mode"] = "oracle"
     # env_params["observation_mode"] = "tactile"
     # env_params["observation_mode"] = "visual"
     # env_params["observation_mode"] = "visuotactile"
 
-    robot_arm_params["type"] = "ur5"
+    # robot_arm_params["type"] = "ur5"
     # robot_arm_params["type"] = "franka_panda"
     # robot_arm_params["type"] = "kuka_iiwa"
     # robot_arm_params["type"] = "cr3"
-    # robot_arm_params["type"] = "mg400"
+    robot_arm_params["type"] = "mg400"
 
     tactile_sensor_params["show_tactile"] = False
     tactile_sensor_params["image_size"] = image_size
@@ -59,7 +61,6 @@ def main():
 
     visual_sensor_params["show_vision"] = False
     visual_sensor_params["image_size"] = image_size
-
     env = gym.make(
         id=env_id,
         env_params=env_params,

@@ -8,19 +8,17 @@ env_args = {
         "show_gui": False,
 
         "observation_mode": "oracle",
-        # "observation_mode": "tactile",
-        # "observation_mode": "visual",
         # "observation_mode": "visuotactile",
         # "observation_mode": "tactile_and_feature",
         # "observation_mode": "visual_and_feature",
         # "observation_mode": "visuotactile_and_feature",
     },
     "robot_arm_params": {
-        "type": "ur5",
+        # "type": "ur5",
         # "type": "franka_panda",
         # "type": "kuka_iiwa",
         # "type": "cr3",
-        # "type": "mg400",
+        "type": "mg400",
 
         # "control_mode": "tcp_position_control",
         "control_mode": "tcp_velocity_control",
@@ -33,9 +31,10 @@ env_args = {
         # "control_dofs": ["J1", "J2", "J3", "J4", "J5", "J6", "J7"],
     },
     "tactile_sensor_params": {
-        "type": "standard_tactip",
+        # "type": "standard_tactip",
         # "type": "standard_digit",
         # "type": "standard_digitac",
+        "type": "right_angle_tactip",
 
         "image_size": [128, 128],
         "turn_off_border": False,

@@ -34,3 +34,13 @@ register(
     id="object_balance-v0",
     entry_point="tactile_gym.envs.nonprehensile_manipulation.object_balance.object_balance_env:ObjectBalanceEnv",
 )
+
+register(
+    id='bitouch_object_push-v0',
+    entry_point='tactile_gym.envs.bitouch.bitouch_object_push.bitouch_object_push_env:BitouchObjectPushEnv',
+)
+
+register(
+    id='bitouch_object_lift-v0',
+    entry_point='tactile_gym.envs.bitouch.bitouch_object_lift.bitouch_object_lift_env:BitouchObjectLiftEnv',
+)

@@ -5,7 +5,7 @@ from tactile_gym.sb3_helpers.params.default_params import rl_params_sac
 from tactile_gym.sb3_helpers.params.default_params import sac_params
 
 
-env_args["env_params"]["max_steps"] = 10_000
+env_args["env_params"]["max_steps"] = 10000
 env_args["env_params"]["observation_mode"] = "oracle"
 # env_args["env_params"]["observation_mode"] = "tactile"
 # env_args["env_params"]["observation_mode"] = "visual"

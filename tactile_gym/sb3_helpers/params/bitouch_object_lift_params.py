@@ -1,0 +1,32 @@
+from tactile_gym.sb3_helpers.params.default_params_bitouch import env_args
+from tactile_gym.sb3_helpers.params.default_params_bitouch import rl_params_ppo
+from tactile_gym.sb3_helpers.params.default_params_bitouch import ppo_params
+from tactile_gym.sb3_helpers.params.default_params_bitouch import rl_params_sac
+from tactile_gym.sb3_helpers.params.default_params_bitouch import sac_params
+
+
+env_args["env_params"]["max_steps"] = 1000
+env_args["env_params"]["observation_mode"] = "oracle"
+# env_args["env_params"]["observation_mode"] = "tactile_and_feature"
+# env_args["env_params"]["observation_mode"] = "visual_and_feature"
+# env_args["env_params"]["observation_mode"] = "visuotactile_and_feature"
+env_args["env_params"]["rand_obj_mass"] = 1000
+# env_args["env_params"]["traj_type"] = "straight"
+env_args["env_params"]["traj_type"] = "simplex"
+
+
+
+
+env_args["robot_arm_params"]["control_mode"] = "tcp_velocity_control"
+env_args["robot_arm_params"]["control_dofs"] = ["x", "y", "Rz"]
+
+rl_params_ppo["env_id"] = "bitouch_object_lift-v0"
+rl_params_ppo["total_timesteps"] = int(1e6)
+ppo_params["learning_rate"] = 3e-4
+
+rl_params_sac["env_id"] = "bitouch_object_lift-v0"
+rl_params_sac["total_timesteps"] = int(1e6)
+sac_params["learning_rate"] = 3e-4
+
+env_args["tactile_sensor_params"]["type"] = "mini_right_angle_inner_tactip"
+# env_args["tactile_sensor_params"]["type"] = "right_angle_tactip"
