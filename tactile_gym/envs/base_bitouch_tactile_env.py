@@ -120,8 +120,8 @@ class BaseBitouchTactileEnv(gym.Env):
             self.ang_pos_lim = 1 * (np.pi / 180)  # rad
 
         elif self._robot_arm_params["control_mode"] == "tcp_velocity_control":
-            self.lin_vel_lim = 0.01  # m/s
-            self.ang_vel_lim = 5.0 * (np.pi / 180)  # rad/s
+            self.lin_vel_lim = 0.005  # m/s
+            self.ang_vel_lim = 10.0 * (np.pi / 180)  # rad/s
 
         elif self._robot_arm_params["control_mode"] == "joint_position_control":
             self.joint_pos_lim = 0.05 * (np.pi / 180)  # rad
@@ -242,45 +242,7 @@ class BaseBitouchTactileEnv(gym.Env):
         """
         Converts an action defined in the workframe to an action defined in the worldframe
         """
-
-        # if enabled, initially convert actions from tcp to workframe
-        if 'tcp' in self._robot_arm_params['control_mode'] and self._robot_arm_params["use_tcp_frame_control"]:
-            actions = self.tcpvel_to_worldvel(actions)
-            actions = self.worldvel_to_workvel(actions)
-
-        if self._robot_arm_params["control_mode"] == "tcp_position_control":
-
-            # get the current tcp pose and increment it using the action
-            cur_tcp_pose = self.embodiment.arm.get_tcp_pose()
-            cur_tcp_pose_workframe = self.worldframe_to_workframe(cur_tcp_pose)
-            target_pose = cur_tcp_pose_workframe + actions
-
-            # limit actions to safe ranges
-            clipped_target_pose = self.check_TCP_pos_lims(target_pose)
-
-            # convert to worldframe coords for IK
-            target_pose_worldframe = self.workframe_to_worldframe(clipped_target_pose)
-            transformed_actions = target_pose_worldframe
-
-        elif self._robot_arm_params["control_mode"] == "tcp_velocity_control":
-
-            # check that this won't push the TCP out of limits
-            # zero any velocities that will
-            clipped_target_vels = self.check_TCP_vel_lims(actions)
-
-            # convert desired vels from workframe to worldframe
-            target_vel = self.workvel_to_worldvel(clipped_target_vels)
-            transformed_actions = target_vel
-
-        elif self._robot_arm_params["control_mode"] == "joint_position_control":
-            transformed_actions = actions
-            cur_joint_angles = self.embodiment.arm.get_joint_angles()
-            transformed_actions = cur_joint_angles + actions
-
-        elif self._robot_arm_params["control_mode"] == "joint_velocity_control":
-            transformed_actions = actions
-
-        return transformed_actions
+        pass
 
     def step(self, action):
         """
@@ -306,14 +268,19 @@ class BaseBitouchTactileEnv(gym.Env):
             assert ("Movement mode not implement yet",self.movement_mode)
         embodiments_list = [self.embodiment_0, self.embodiment_1]
         # print("actions:",actions)
-        # set_trace()
         # scale and embed actions appropriately
         for embodiment, act in zip(embodiments_list, actions_list):
-            # set_trace()
             encoded_action = self.encode_actions(act, embodiment)
             scaled_action = self.scale_actions(encoded_action)
+            if self._robot_arm_params["control_mode"] == "tcp_velocity_control":
+                clipped_action = self.check_TCP_vel_lims(embodiment, scaled_action)
+                target_vel = self.workvel_to_worldvel(clipped_action)
+            # print("actions:", actions)
+            # print("encoded_action:", encoded_action)
+            # print("scaled_action:", scaled_action)
+            # print("clipped_action:", clipped_action)
             self.apply_action(
-                motor_commands = scaled_action,
+                motor_commands = target_vel,
                 embodiment = embodiment,
                 control_mode=self._robot_arm_params["control_mode"],
                 velocity_action_repeat=self._velocity_action_repeat,
@@ -373,13 +340,6 @@ class BaseBitouchTactileEnv(gym.Env):
         else:
             self.step_sim()
 
-    # def get_robot_current_tcp_pos_vel_workframe(self, embodiment):
-    #     cur_tcp_pose = self.embodiment.arm.get_tcp_pose()
-    #     cur_tcp_pose_workframe = self.worldframe_to_workframe(cur_tcp_pose)
-    #     tcp_pos_workframe_robot = cur_tcp_pose_workframe[:3]
-    #     tcp_rpy_workframe_robot = cur_tcp_pose_workframe[3:]
-    #     return tcp_pos_workframe_robot, tcp_rpy_workframe_robot
-
 
 
     def worldframe_to_workframe(self, pose):
@@ -432,23 +392,80 @@ class BaseBitouchTactileEnv(gym.Env):
         """
         return np.clip(pose, self._tcp_lims[:, 0], self._tcp_lims[:, 1])
 
-    def check_TCP_vel_lims(self, vels):
+    def check_TCP_vel_lims(self, embodiment, vels):
         """
         check whether action will take TCP outside of limits,
         zero any velocities that will.
         """
-        cur_tcp_pose = self.embodiment.arm.get_tcp_pose()
-        cur_tcp_pose_workframe = self.worldframe_to_workframe(cur_tcp_pose)
-
-        # get bool arrays for if limits are exceeded and if velocity is in
+        if embodiment.robot_lv == "main_robot":
+            cur_tcp_pos = self.cur_tcp_pos_workframe_robot_0
+            cur_tcp_rpy = self.cur_tcp_rpy_workframe_robot_0
+            tcp_lims = self._tcp_lims[0]
+        elif embodiment.robot_lv == "slave_robot":
+            cur_tcp_pos = self.cur_tcp_pos_workframe_robot_1
+            cur_tcp_rpy = self.cur_tcp_rpy_workframe_robot_1
+            tcp_lims = self._tcp_lims[1]
         # the direction that's exceeded
-        exceed_llims = np.logical_and(cur_tcp_pose_workframe < self._tcp_lims[:, 0], vels < 0)
-        exceed_ulims = np.logical_and(cur_tcp_pose_workframe > self._tcp_lims[:, 1], vels > 0)
-        exceeded = np.logical_or(exceed_llims, exceed_ulims)
+        if embodiment.update_init_rpy[2]==np.pi and embodiment.robot_lv=="slave_robot" :
+            exceed_pos_llims = np.logical_and(
+                cur_tcp_pos < tcp_lims[:3, 0], vels[:3] < 0
+            )
+            exceed_pos_ulims = np.logical_and(
+                cur_tcp_pos > tcp_lims[:3, 1], vels[:3] > 0
+            )
+            exceed_rpy_llims = np.logical_and(
+                cur_tcp_rpy[0:2] < tcp_lims[3:5, 0], vels[3:5] < 0
+            )
+            exceed_rpy_ulims = np.logical_and(
+                cur_tcp_rpy[0:2] > tcp_lims[3:5, 1], vels[3:5] > 0
+            )
+            if cur_tcp_rpy[2] > 0:
+                exceed_rpy_llims = np.insert(exceed_rpy_llims, 2, np.logical_and(
+                    cur_tcp_rpy[2]-2*np.pi < tcp_lims[5, 0], vels[5] < 0
+                ))
+                # no limit here, just make up the number to match.
+                exceed_rpy_ulims = np.insert(exceed_rpy_ulims, 2, np.logical_and(
+                    cur_tcp_rpy[2]-2*np.pi < tcp_lims[5, 0], vels[5] < 0
+                ))
+            else:
+                # no limit here, just make up the number to match.
+                exceed_rpy_ulims = np.insert(exceed_rpy_ulims, 2 ,np.logical_and(
+                    cur_tcp_rpy[2] > tcp_lims[5, 1], vels[5] > 0
+                ))
+                exceed_rpy_llims = np.insert(exceed_rpy_llims, 2, np.logical_and(
+                    cur_tcp_rpy[2] < tcp_lims[5, 0], vels[5] < 0
+                ))
+        else:        
+            exceed_pos_llims = np.logical_and(
+                cur_tcp_pos < tcp_lims[:3, 0], vels[:3] < 0
+            )
+            exceed_pos_ulims = np.logical_and(
+                cur_tcp_pos > tcp_lims[:3, 1], vels[:3] > 0
+            )
+            exceed_rpy_llims = np.logical_and(
+                cur_tcp_rpy < tcp_lims[3:, 0], vels[3:] < 0
+            )
+            exceed_rpy_ulims = np.logical_and(
+                cur_tcp_rpy > tcp_lims[3:, 1], vels[3:] > 0
+            )
+        # combine all bool arrays into one
+        exceeded_pos = np.logical_or(exceed_pos_llims, exceed_pos_ulims)
+        exceeded_rpy = np.logical_or(exceed_rpy_llims, exceed_rpy_ulims)
+        exceeded = np.concatenate([exceeded_pos, exceeded_rpy])
 
         # cap the velocities at 0 if limits are exceeded
         capped_vels = np.array(vels)
         capped_vels[np.array(exceeded)] = 0
+
+        # transform for mg400 from robot to world
+        if embodiment.robot_lv=="main_robot":
+            y = capped_vels[0]
+            x = -capped_vels[1] 
+        else:
+            y = -capped_vels[0]
+            x = capped_vels[1] 
+        capped_vels[0] = x
+        capped_vels[1] = y
 
         return capped_vels
 

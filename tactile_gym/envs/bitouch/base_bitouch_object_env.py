@@ -31,6 +31,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
             tactile_sensor_params=tactile_sensor_params,
             visual_sensor_params=visual_sensor_params,
             robot_lv = "main_robot",
+            robot_id = 0,
         )
 
 
@@ -40,6 +41,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
             tactile_sensor_params=tactile_sensor_params,
             visual_sensor_params=visual_sensor_params,
             robot_lv = "slave_robot",
+            robot_id = 1,
 
         )
 
@@ -220,9 +222,8 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.update_workframe() # not used in pushing task
 
         # make room for the object
-        
         reset_tcp_pose_0_workframe = np.array([x for x in [-0.12,0,0]] + [x for x in  self.embodiment_0.update_init_rpy]) 
-        reset_tcp_pose_1_workframe =  np.array([x for x in [0.12,0,0]] + [x for x in  self.embodiment_1.update_init_rpy])
+        reset_tcp_pose_1_workframe = np.array([x for x in [0.12,0,0]] + [x for x in  self.embodiment_1.update_init_rpy])
         reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(reset_tcp_pose_0_workframe)
         reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(reset_tcp_pose_1_workframe)
         self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
@@ -232,7 +233,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(self.embodiment_0.update_init_pose)
         reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(self.embodiment_1.update_init_pose)
         self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
-        # self.embodiment_0.arm.draw_TCP()
+        
         self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
         # define a new goal position based on init pose of object
         self.make_goal()

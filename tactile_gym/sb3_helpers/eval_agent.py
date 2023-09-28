@@ -9,7 +9,7 @@ import tactile_gym.envs
 from tactile_gym.sb3_helpers.rl_utils import make_eval_env
 # from tactile_learning.utils.utils_learning import load_json_obj
 from tactile_gym.utils.utils_learning import load_json_obj
-
+from ipdb import set_trace
 def eval_and_save_vid(
     model, env, saved_model_dir, n_eval_episodes=10, deterministic=True, render=False, save_vid=False, take_snapshot=False
 ):
@@ -146,39 +146,40 @@ if __name__ == "__main__":
     seed = int(1)
     deterministic = True
     show_gui = True
-    show_tactile = False
+    show_tactile = True
     show_vision = False
     render = False
     save_vid = False
     take_snapshot = False
 
     # load the trained model
-    algo_name = 'ppo'
+    # algo_name = 'ppo'
+    algo_name = 'rad_ppo'
     # algo_name = 'sac'
 
     # env_id = 'edge_follow-v0'
-    env_id = "surface_follow-v0"
+    # env_id = "surface_follow-v0"
     # env_id = "surface_follow-v1"
     # env_id = 'surface_follow-v2'
     # env_id = 'object_roll-v0'
     # env_id = 'object_push-v0'
     # env_id = 'object_balance-v0'
+    env_id = 'bitouch_object_lift-v0'
 
     # obs_type = 's1_oracle'
-    obs_type = "s1_tactile"
-    # obs_type = "s1_tactile_and_feature"
+    # obs_type = "s1_tactile"
+    obs_type = "s1_tactile_and_feature"
     # obs_type = 'visual'
     # obs_type = 'visuotactile'
 
     # combine args
     saved_model_dir = os.path.join(
-        os.path.dirname(__file__),
+        os.path.dirname(os.path.abspath(__file__)),
         "saved_models",
         env_id,
         algo_name,
         obs_type
     )
-
     final_evaluation(
         saved_model_dir,
         n_eval_episodes,

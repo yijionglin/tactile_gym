@@ -40,10 +40,12 @@ def main():
     # overwrite default params for testing
     env_params["max_steps"] = 10000
     env_params["show_gui"] = True
-    env_params["observation_mode"] = "oracle"
+    # env_params["observation_mode"] = "oracle"
     # env_params["observation_mode"] = "tactile"
     # env_params["observation_mode"] = "visual"
     # env_params["observation_mode"] = "visuotactile"
+    env_params["observation_mode"] = "tactile_and_feature"
+
 
     # robot_arm_params["type"] = "ur5"
     # robot_arm_params["type"] = "franka_panda"

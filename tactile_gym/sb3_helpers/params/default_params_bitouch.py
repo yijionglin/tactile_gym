@@ -37,7 +37,7 @@ env_args = {
         "type": "right_angle_tactip",
 
         "image_size": [128, 128],
-        "turn_off_border": False,
+        "turn_off_border": True,
         "show_tactile": False,
     },
     "visual_sensor_params": {
