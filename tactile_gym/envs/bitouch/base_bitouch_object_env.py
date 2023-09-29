@@ -52,10 +52,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.load_object(self.visualise_goal)
         self.load_trajectory()
         self.reset()
-
-        
         self.setup_action_space()
-        
         self.setup_observation_space()
         
 
@@ -74,6 +71,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         self.obj_id = self._pb.loadURDF(
             self.object_path, self.init_obj_pos, self.init_obj_orn
         )
+        
         if visualise_goal:
             self.goal_indicator = self._pb.loadURDF(
                 self.goal_path, self.init_obj_pos, [0, 0, 0, 1], useFixedBase=True

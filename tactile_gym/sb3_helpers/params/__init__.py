@@ -80,7 +80,14 @@ def import_parameters(env_name, algo_name):
             rl_params_sac,
             sac_params,
         )
-
+    elif env_name == "bipush-v0":
+        from tactile_gym.sb3_helpers.params.bipush_params import (
+            env_args,
+            rl_params_ppo,
+            ppo_params,
+            rl_params_sac,
+            sac_params,
+        )
     else:
         sys.exit("Incorrect environment specified: {}.".format(env_name))
 

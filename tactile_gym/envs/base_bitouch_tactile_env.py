@@ -120,8 +120,12 @@ class BaseBitouchTactileEnv(gym.Env):
             self.ang_pos_lim = 1 * (np.pi / 180)  # rad
 
         elif self._robot_arm_params["control_mode"] == "tcp_velocity_control":
-            self.lin_vel_lim = 0.005  # m/s
-            self.ang_vel_lim = 10.0 * (np.pi / 180)  # rad/s
+            if self.env_name == "bipush":
+                self.lin_vel_lim = 0.01  # m/s
+                self.ang_vel_lim = 5.0 * (np.pi / 180)  # rad/s
+            else:
+                self.lin_vel_lim = 0.005  # m/s
+                self.ang_vel_lim = 10.0 * (np.pi / 180)  # rad/s
 
         elif self._robot_arm_params["control_mode"] == "joint_position_control":
             self.joint_pos_lim = 0.05 * (np.pi / 180)  # rad
@@ -191,28 +195,6 @@ class BaseBitouchTactileEnv(gym.Env):
     def get_act_dim(self):
         return len(self._robot_arm_params["control_dofs"])
 
-    # def encode_actions(self, actions):
-    #     """
-    #     Return actions as np.array in correct places for sending to robot arm
-    #     i.e. NN could be predicting [y, Rz] actions. Make sure they are in
-    #     correct place [1, 5].
-    #     """
-
-    #     if 'tcp' in self._robot_arm_params['control_mode']:
-    #         encoded_actions = np.zeros(6)
-    #         for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
-    #             encoded_actions[tcp_action_mapping[control_dof]] = actions[i]
-
-    #     elif 'joint' in self._robot_arm_params['control_mode']:
-    #         encoded_actions = np.zeros(self.embodiment.arm.num_control_dofs)
-    #         for i, control_dof in enumerate(self._robot_arm_params["control_dofs"]):
-    #             encoded_actions[joint_action_mapping[control_dof]] = actions[i]
-
-    #     else:
-    #         sys.exit("Incorrect control_mode specified")
-
-    #     return encoded_actions
-
     def scale_actions(self, actions):
         """Scale actions from input range to range specific to actions space."""
 
@@ -272,7 +254,7 @@ class BaseBitouchTactileEnv(gym.Env):
             if self._robot_arm_params["control_mode"] == "tcp_velocity_control":
                 clipped_action = self.check_TCP_vel_lims(embodiment, scaled_action)
                 target_vel = self.workvel_to_worldvel(clipped_action)
-            # print("actions:", actions)
+            # print("actions:", act)
             # print("encoded_action:", encoded_action)
             # print("scaled_action:", scaled_action)
             # print("clipped_action:", clipped_action)
@@ -368,6 +350,29 @@ class BaseBitouchTactileEnv(gym.Env):
         self.cur_tcp_vel_worldframe_robot_1 = self.embodiment_0.arm.get_tcp_vel()
         self.cur_tcp_vel_workframe_robot_1 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_1)
 
+    def get_obj_current_state(self):
+        self.cur_obj_pose_worldframe = self.get_obj_pose_worldframe()
+        (self.cur_obj_pos_workframe, 
+         self.cur_obj_rpy_workframe, 
+         self.cur_obj_orn_workframe
+        ) = self.get_obj_pos_rpy_orn_workframe()
+
+        (self.cur_obj_pos_worldframe, 
+         self.cur_obj_rpy_worldframe, 
+         self.cur_obj_orn_worldframe
+        ) = self.get_obj_pos_rpy_orn_worldframe()
+
+        (
+            self.cur_obj_lin_vel_workframe,
+            self.cur_obj_ang_vel_workframe,
+        ) = self.get_obj_vel_workframe()
+
+    def get_pos_rpy_orn_from_pose(self, pose):
+        pos =  pose[:3]
+        rpy =  pose[3:]
+        orn = self._pb.getQuaternionFromEuler(rpy)
+        return np.array(pos), np.array(rpy), np.array(orn)
+    
     def xy_obj_0_dist_to_obj_1(self):
         """
         xy L2 distance from the current obj position to the goal.

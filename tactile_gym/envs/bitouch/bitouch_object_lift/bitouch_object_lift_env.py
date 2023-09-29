@@ -19,6 +19,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
     ):
         # env specific values
+        self.env_name = "bireorient"
         self.termination_pos_dist = 0.025
         self.termination_orn_dist = 0.040
         self.visualise_goal = False
@@ -549,29 +550,6 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         elif self.movement_mode in ["TyRz","TxRz", "TxTyRz"]:
             encoded_actions = self.encode_TCP_frame_actions(actions, robot)
         return encoded_actions
-
-    def get_pos_rpy_orn_from_pose(self, pose):
-        pos =  pose[:3]
-        rpy =  pose[3:]
-        orn = self._pb.getQuaternionFromEuler(rpy)
-        return np.array(pos), np.array(rpy), np.array(orn)
-
-    def get_obj_current_state(self):
-        self.cur_obj_pose_worldframe = self.get_obj_pose_worldframe()
-        (self.cur_obj_pos_workframe, 
-         self.cur_obj_rpy_workframe, 
-         self.cur_obj_orn_workframe
-        ) = self.get_obj_pos_rpy_orn_workframe()
-
-        (self.cur_obj_pos_worldframe, 
-         self.cur_obj_rpy_worldframe, 
-         self.cur_obj_orn_worldframe
-        ) = self.get_obj_pos_rpy_orn_worldframe()
-
-        (
-            self.cur_obj_lin_vel_workframe,
-            self.cur_obj_ang_vel_workframe,
-        ) = self.get_obj_vel_workframe()
 
     def get_step_data(self):
         # For computing the reward as well as for  the observation.

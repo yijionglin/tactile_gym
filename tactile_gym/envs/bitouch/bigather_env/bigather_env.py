@@ -20,6 +20,7 @@ class BigatherEnv(BaseBitouchObjectEnv):
 
     ):
         # env specific values
+        self.env_name = "bigather"
         self.termination_pos_dist = 0.08
         self.goal_update_pos_dist = 0.03
         self.embed_dist = 0.005
@@ -30,7 +31,6 @@ class BigatherEnv(BaseBitouchObjectEnv):
         self.if_goal_visiualization = True
         self.if_use_obj_xy_info = 0
         self.if_use_obj_Rz_info = 0
-        self.env_name = "bigather"
         self.if_apply_force_perturbation = True
         
         # add environment specific env parameters
@@ -52,7 +52,6 @@ class BigatherEnv(BaseBitouchObjectEnv):
         self.rand_init_orn = env_params["rand_init_orn"]
         
         # add environment specific robot arm parameters
-        robot_arm_params["use_tcp_frame_control"] = True
         
         robot_arm_params["rest_poses"] = rest_poses_dict[robot_arm_params["type"]][tactile_sensor_params["type"]]
         robot_arm_params["base_pos_and_init_pos"] = EEs_poses_sets[robot_arm_params["type"]]
@@ -100,7 +99,7 @@ class BigatherEnv(BaseBitouchObjectEnv):
 
     def setup_object(self):
         """
-        Set vars for loading an object.
+        Set vars for loading two objects.
         Just used in initialzing an env lass.
         """
         # The init pose of object is defined in world space
@@ -203,7 +202,7 @@ class BigatherEnv(BaseBitouchObjectEnv):
 
     def reset_object(self):
         """
-        Reset the base pose of an object on reset,
+        Reset the base poses of objects on reset,
         can also adjust physics params here.
         """
         self.if_use_obj_xy_info = self.np_random.choice([0, 1])

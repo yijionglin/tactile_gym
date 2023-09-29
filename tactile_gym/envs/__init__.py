@@ -41,6 +41,12 @@ register(
 )
 
 register(
+    id='bipush-v0',
+    entry_point='tactile_gym.envs.bitouch.bipush_env.bipush_env:BipushEnv',
+)
+
+
+register(
     id='bitouch_object_lift-v0',
     entry_point='tactile_gym.envs.bitouch.bitouch_object_lift.bitouch_object_lift_env:BitouchObjectLiftEnv',
 )

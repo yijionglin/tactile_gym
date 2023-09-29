@@ -82,9 +82,9 @@ def final_evaluation(
     n_eval_episodes,
     seed=None,
     deterministic=True,
-    show_gui=True,
-    show_tactile=True,
-    show_vision=True,
+    show_gui=False,
+    show_tactile=False,
+    show_vision=False,
     render=False,
     save_vid=False,
     take_snapshot=False,
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     seed = int(1)
     deterministic = True
     show_gui = True
-    show_tactile = True
+    show_tactile = False
     show_vision = False
     render = False
     save_vid = False
@@ -165,7 +165,8 @@ if __name__ == "__main__":
     # env_id = 'object_push-v0'
     # env_id = 'object_balance-v0'
     # env_id = 'bitouch_object_lift-v0'
-    env_id = 'bigather-v0'
+    # env_id = 'bigather-v0'
+    env_id = 'bipush-v0'
 
     # obs_type = 's1_oracle'
     # obs_type = "s1_tactile"

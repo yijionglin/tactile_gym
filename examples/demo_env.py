@@ -24,7 +24,7 @@ def main():
                 example_arm-v0,
                 edge_follow-v0, surface_follow-v0, surface_follow-v1,
                 object_roll-v0, object_push-v0, object_balance-v0,
-                bitouch_object_lift-v0, bigather-v0}"""
+                bitouch_object_lift-v0, bigather-v0, bipush-v0}"""
     )
     args = parser.parse_args()
     env_id = args.env
