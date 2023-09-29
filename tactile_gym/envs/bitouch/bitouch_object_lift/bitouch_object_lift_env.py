@@ -4,7 +4,6 @@ from tactile_gym.assets import add_assets_path
 from tactile_gym.envs.bitouch.bitouch_object_lift.poses import (
     rest_poses_dict,
     EEs_poses_sets,
-    embed_dist,
 )
 from tactile_gym.envs.bitouch.base_bitouch_object_env import BaseBitouchObjectEnv
 import cv2
@@ -24,7 +23,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         self.termination_orn_dist = 0.040
         self.visualise_goal = False
         self.goal_line_id = None
-        self.embed_dist = embed_dist
+        self.embed_dist = 0.005
         self.obj_width = 0.06
         self.obj_length = 0.06
         self.obj_height = 0.1
@@ -153,6 +152,42 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         self.embodiment_1.full_reset()
         # self.apply_constraints()
         self.reset_counter = 0
+
+    def reset(self):
+        """
+        Reset the environment after an episode terminates.
+        """
+        # full reset pybullet sim to clear cache, this avoids silent bug where memory fills and visual
+        # rendering fails, this is more prevelant when loading/removing larger files
+        if self.reset_counter == self.reset_limit:
+            self.full_reset()
+        self.reset_counter += 1
+        self._env_step_counter = 0
+        # update the workframe to a new position if randomisations are on
+        self.reset_task() #  used in marl lift task, not in push task
+        self.update_workframe() # not used in pushing task
+        # make room for the object
+        reset_tcp_pose_0_workframe = np.array([x for x in [-0.12,0,0]] + [x for x in  self.embodiment_0.update_init_rpy]) 
+        reset_tcp_pose_1_workframe = np.array([x for x in [0.12,0,0]] + [x for x in  self.embodiment_1.update_init_rpy])
+        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(reset_tcp_pose_0_workframe)
+        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(reset_tcp_pose_1_workframe)
+        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
+        # self.embodiment_0.arm.draw_TCP()
+        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
+        self.reset_object()
+        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(self.embodiment_0.update_init_pose)
+        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(self.embodiment_1.update_init_pose)
+        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
+        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
+        # define a new goal position based on init pose of object
+        self.make_goal()
+        # just to change variables to the reset pose incase needed before taking
+        # a step
+        self.get_step_data()
+        # get the starting observation
+        self._observation = self.get_observation()
+        
+        return self._observation
 
     def reset_object(self):
         """
@@ -521,52 +556,7 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         orn = self._pb.getQuaternionFromEuler(rpy)
         return np.array(pos), np.array(rpy), np.array(orn)
 
-    def get_two_robots_current_states(self):
-        # Robot_0 pose in world and work frames.
-        self.cur_tcp_pose_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_pose()
-        self.cur_tcp_pose_workframe_robot_0 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_0)
-        
-        (
-            self.cur_tcp_pos_worldframe_robot_0 ,
-            self.cur_tcp_rpy_worldframe_robot_0,
-            self.cur_tcp_orn_worldframe_robot_0,
-        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_0)
-        (
-            self.cur_tcp_pos_workframe_robot_0 ,
-            self.cur_tcp_rpy_workframe_robot_0,
-            self.cur_tcp_orn_workframe_robot_0,
-        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_0)
-
-        # Robot_0 twist in world and work frames.
-        self.cur_tcp_vel_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_vel()
-        self.cur_tcp_vel_workframe_robot_0 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_0)
-
-        # Robot_1 pose in world and work frames.
-        self.cur_tcp_pose_worldframe_robot_1 = self.embodiment_1.arm.get_tcp_pose()
-        self.cur_tcp_pose_workframe_robot_1 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_1)
-        
-        (
-            self.cur_tcp_pos_worldframe_robot_1 ,
-            self.cur_tcp_rpy_worldframe_robot_1,
-            self.cur_tcp_orn_worldframe_robot_1,
-        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_1)
-        (
-            self.cur_tcp_pos_workframe_robot_1 ,
-            self.cur_tcp_rpy_workframe_robot_1,
-            self.cur_tcp_orn_workframe_robot_1,
-        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_1)
-
-        # Robot_1 twist in world and work frames.
-        self.cur_tcp_vel_worldframe_robot_1 = self.embodiment_0.arm.get_tcp_vel()
-        self.cur_tcp_vel_workframe_robot_1 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_1)
-
-    def get_step_data(self):
-        # For computing the reward as well as for  the observation.
-
-        # get state of tcp and obj per step
-
-        self.get_two_robots_current_states()
-
+    def get_obj_current_state(self):
         self.cur_obj_pose_worldframe = self.get_obj_pose_worldframe()
         (self.cur_obj_pos_workframe, 
          self.cur_obj_rpy_workframe, 
@@ -578,6 +568,16 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
          self.cur_obj_orn_worldframe
         ) = self.get_obj_pos_rpy_orn_worldframe()
 
+        (
+            self.cur_obj_lin_vel_workframe,
+            self.cur_obj_ang_vel_workframe,
+        ) = self.get_obj_vel_workframe()
+
+    def get_step_data(self):
+        # For computing the reward as well as for  the observation.
+        # get state of tcp and obj per step
+        self.get_two_robots_current_states()
+        self.get_obj_current_state()
         reward = self.get_reward()
         # get rl info
         done = self.termination()
@@ -776,11 +776,6 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         be enough to learn reasonable policies.
         """
         # get sim info on object
-        (
-            cur_obj_lin_vel_workframe,
-            cur_obj_ang_vel_workframe,
-        ) = self.get_obj_vel_workframe()
-
         # stack into array
         observation = np.hstack(
             [
@@ -790,8 +785,8 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
                 *self.cur_tcp_vel_workframe_robot_1,
                 *self.cur_obj_pos_workframe,
                 *self.cur_obj_rpy_workframe,
-                *cur_obj_lin_vel_workframe,
-                *cur_obj_ang_vel_workframe,
+                *self.cur_obj_lin_vel_workframe,
+                *self.cur_obj_ang_vel_workframe,
                 *self.goal_pos_workframe,
                 *self.goal_rpy_workframe,
             ]

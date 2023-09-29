@@ -24,7 +24,8 @@ if __name__ == "__main__":
     # env_id = "surface_follow-v1"
     # env_id = "object_roll-v0"
     # env_id = "object_push-v0"
-    env_id = "bitouch_object_lift-v0"
+    # env_id = "bitouch_object_lift-v0"
+    env_id = 'bigather-v0'
     # env_id = "object_balance-v0"
 
     env_args, rl_params, algo_params = import_parameters(env_id, algo_name)

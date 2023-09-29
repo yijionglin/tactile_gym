@@ -126,6 +126,29 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
         return np.array([*obj_pos, *obj_rpy])
 
+    def get_obj_id_pos_rpy_orn_worldframe(self, obj_id):
+        """
+        Get the current position of the object, return as arrays.
+        """
+        obj_pos, obj_orn = self._pb.getBasePositionAndOrientation(obj_id)
+        obj_rpy = self._pb.getEulerFromQuaternion(obj_orn)
+
+        return np.array(obj_pos), np.array(obj_rpy), np.array(obj_orn), 
+
+    def get_obj_id_pos_rpy_orn_workframe(self, obj_id):
+        (obj_pos, obj_rpy, _,
+         ) = self.get_obj_id_pos_rpy_orn_worldframe(obj_id)
+
+        obj_pose_workframe = self.worldframe_to_workframe(
+            np.array([*obj_pos, *obj_rpy])
+        )
+
+        obj_pos_workframe = obj_pose_workframe[:3]
+        obj_rpy_workframe = obj_pose_workframe[3:]
+        obj_orn_workframe = self._pb.getQuaternionFromEuler(obj_rpy_workframe)
+
+        return obj_pos_workframe, obj_rpy_workframe, obj_orn_workframe
+
 
     def get_obj_pos_rpy_orn_worldframe(self):
         """
@@ -149,7 +172,13 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
  
 
 
-
+    def get_obj_id_vel_worldframe(self,obj_id):
+        """
+        Get the current velocity of the object, return as arrays.
+        """
+        obj_lin_vel, obj_ang_vel = self._pb.getBaseVelocity(obj_id)
+        return np.array(obj_lin_vel), np.array(obj_ang_vel)
+    
     def get_obj_vel_worldframe(self):
         """
         Get the current velocity of the object, return as arrays.
@@ -177,6 +206,19 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         obj_ang_vel = obj_twist[3:]
         return np.array(obj_lin_vel), np.array(obj_ang_vel)
 
+    def get_obj_id_vel_workframe(self, obj_id):
+        """
+        Get the current velocity of the object, return as arrays.
+        """
+        obj_lin_vel, obj_ang_vel = self.get_obj_id_vel_worldframe(obj_id)
+        obj_twist = self.worldvel_to_workvel(
+            np.array([*obj_lin_vel, *obj_ang_vel])
+        )
+        obj_lin_vel =  obj_twist[:3]
+        obj_ang_vel = obj_twist[3:]
+
+        return np.array(obj_lin_vel), np.array(obj_ang_vel)
+    
     def get_pb_id_vel_workframe(self, pb_id, robot):
         """
         Get the current velocity of the object, return as arrays.
@@ -206,46 +248,7 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         return np.array(objframe_pos), np.array(objframe_orn)
 
     def reset(self):
-        """
-        Reset the environment after an episode terminates.
-        """
-        # full reset pybullet sim to clear cache, this avoids silent bug where memory fills and visual
-        # rendering fails, this is more prevelant when loading/removing larger files
-        if self.reset_counter == self.reset_limit:
-            self.full_reset()
-
-        self.reset_counter += 1
-        self._env_step_counter = 0
-
-        # update the workframe to a new position if randomisations are on
-        self.reset_task() #  used in marl lift task, not in push task
-        self.update_workframe() # not used in pushing task
-
-        # make room for the object
-        reset_tcp_pose_0_workframe = np.array([x for x in [-0.12,0,0]] + [x for x in  self.embodiment_0.update_init_rpy]) 
-        reset_tcp_pose_1_workframe = np.array([x for x in [0.12,0,0]] + [x for x in  self.embodiment_1.update_init_rpy])
-        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(reset_tcp_pose_0_workframe)
-        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(reset_tcp_pose_1_workframe)
-        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
-        # self.embodiment_0.arm.draw_TCP()
-        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
-        self.reset_object()
-        reset_tcp_pose_0_worldframe = self.workframe_to_worldframe(self.embodiment_0.update_init_pose)
-        reset_tcp_pose_1_worldframe = self.workframe_to_worldframe(self.embodiment_1.update_init_pose)
-        self.embodiment_0.reset(reset_tcp_pose=reset_tcp_pose_0_worldframe)
-        
-        self.embodiment_1.reset(reset_tcp_pose=reset_tcp_pose_1_worldframe)
-        # define a new goal position based on init pose of object
-        self.make_goal()
-        
-        # just to change variables to the reset pose incase needed before taking
-        # a step
-        self.get_step_data()
-        
-        # get the starting observation
-        self._observation = self.get_observation()
-        
-        return self._observation
+        pass
 
     def full_reset(self):
         """
@@ -280,8 +283,6 @@ class BaseBitouchObjectEnv(BaseBitouchTactileEnv):
         xyz L2 distance from the current obj position to the goal.
         """
         dist = np.linalg.norm(self.cur_obj_pos_worldframe[:2] - self.goal_pos_worldframe[2])
-        print('self.cur_obj_pos_worldframe[:2]',self.cur_obj_pos_worldframe[:2])
-        print("self.goal_pos_worldframe[2]:", self.goal_pos_worldframe[2])
         return dist
 
     def xyz_obj_dist_to_goal_z(self):

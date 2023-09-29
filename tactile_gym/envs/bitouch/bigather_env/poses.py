@@ -40,46 +40,46 @@ rest_poses_dict = {
                 ),
     }},
     "mg400": {
-        "mini_right_angle_inner_tactip": {
+        "mini_right_angle_h_inner_tactip": {
             "main_robot":
                 np.array(
                     [
-                    0.0                 ,     # j1        (revolute)
-                    0.13255993669047367,     # j2_1         (revolute)
-                    1.1574479374032474,     # j3_1         (revolute)
-                    -1.288404444211307,     # j4_1          (revolute)
-                    -1.5715710939519152,   # j5          (revolute)
+                    -0.7633290833590991,     # j1        (revolute)
+                    1.0463485970447421,     # j2_1         (revolute)
+                    -0.5495075981644428,     # j3_1         (revolute)
+                    -0.4979298780294844,     # j4_1          (revolute)
+                    -0.8074701788897525,   # j5          (revolute)
                     0,                      # ee_joint           (fixed)
                     0,                      # tactip_ee_joint           (fixed)
                     0,                      # tactip_adaptor_joint           (fixed)
                     0,                      # tactip_tip_to_body    (fixed)
                     0,                      # tcp_joint (fixed)
-                    0.13255993572057867,      # j2_2 = j2_1         (revolute)
-                    -0.13255993572057867 ,   # j3_2 = -j2_1         (revolute)
-                    1.2900083877098583      # j4_2 = j2_1 + j3_1          (revolute)
+                    1.0463485970447421,      # j2_2 = j2_1         (revolute)
+                    -1.0463485970447421 ,   # j3_2 = -j2_1         (revolute)
+                    0.4968386553034963      # j4_2 = j2_1 + j3_1          (revolute)
                     ]
                 ),
 
             "slave_robot":
                 np.array(
                     [
-                    0.0                ,     # j1        (revolute)
-                    0.13190965446977465,     # j2_1         (revolute)
-                    1.157591630523335,     # j3_1         (revolute)
-                    -1.2878929503368037,     # j4_1          (revolute)
-                    1.5715700586625354,   # j5          (revolute)
+                    -0.7809348456811154,     # j1        (revolute)
+                    1.0057647239781813,     # j2_1         (revolute)
+                    -0.4694053710791807,     # j3_1         (revolute)
+                    -0.5374716584277155,     # j4_1          (revolute)
+                    -0.7898636690928643,   # j5          (revolute)
                     0,                      # ee_joint           (fixed)
                     0,                      # tactip_ee_joint           (fixed)
                     0,                      # tactip_adaptor_joint           (fixed)
                     0,                      # tactip_tip_to_body    (fixed)
                     0,                      # tcp_joint (fixed)
-                    0.13190965395868198,      # j2_2 = j2_1         (revolute)
-                    -0.13190965395868198 ,   # j3_2 = -j2_1         (revolute)
-                    1.2895017223505039      # j4_2 = j2_1 + j3_1          (revolute)
+                    1.0057648450323122,      # j2_2 = j2_1         (revolute)
+                    -1.0057648450323122 ,   # j3_2 = -j2_1         (revolute)
+                    0.5363566507277896      # j4_2 = j2_1 + j3_1          (revolute)
                     ]
                 ),
-                        
-                },
+                        },
+
         }
     }
 EEs_poses_sets = {

@@ -36,8 +36,8 @@ register(
 )
 
 register(
-    id='bitouch_object_push-v0',
-    entry_point='tactile_gym.envs.bitouch.bitouch_object_push.bitouch_object_push_env:BitouchObjectPushEnv',
+    id='bigather-v0',
+    entry_point='tactile_gym.envs.bitouch.bigather_env.bigather_env:BigatherEnv',
 )
 
 register(

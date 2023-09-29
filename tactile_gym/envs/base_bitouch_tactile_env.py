@@ -112,7 +112,7 @@ class BaseBitouchTactileEnv(gym.Env):
 
         # these are used for bounds on the action space in SAC and clipping
         # range for PPO
-        self.min_action, self.max_action = -1.0, 1.0
+        self.min_action, self.max_action = -0.25, 0.25
 
         # define action ranges per act dim to rescale output of policy
         if self._robot_arm_params["control_mode"] == "tcp_position_control":
@@ -229,7 +229,6 @@ class BaseBitouchTactileEnv(gym.Env):
             scaled_actions = np.zeros(6)
             scaled_actions[:3] = (((actions[:3] - self.min_action) * (2*self.lin_vel_lim)) / input_range) - self.lin_vel_lim
             scaled_actions[3:] = (((actions[3:] - self.min_action) * (2*self.ang_vel_lim)) / input_range) - self.ang_vel_lim
-
         elif self._robot_arm_params["control_mode"] == "joint_position_control":
             scaled_actions = (((actions - self.min_action) * (2*self.joint_pos_lim)) / input_range) - self.joint_pos_lim
 
@@ -263,11 +262,9 @@ class BaseBitouchTactileEnv(gym.Env):
             actions_list = [actions[:2], actions[2:4]]
         elif self.act_dim ==2 :
             actions_list = [actions[0], actions[1]]
-
         else:
             assert ("Movement mode not implement yet",self.movement_mode)
         embodiments_list = [self.embodiment_0, self.embodiment_1]
-        # print("actions:",actions)
         # scale and embed actions appropriately
         for embodiment, act in zip(embodiments_list, actions_list):
             encoded_action = self.encode_actions(act, embodiment)
@@ -286,15 +283,6 @@ class BaseBitouchTactileEnv(gym.Env):
                 velocity_action_repeat=self._velocity_action_repeat,
                 max_steps=self._max_blocking_pos_move_steps,
             )
-        # self.embodiment_0.arm.draw_TCP()
-        # self.embodiment_1.arm.draw_TCP()
-        # self.embodiment_1.apply_action(
-        #     scaled_actions,
-        #     control_mode=self.control_mode,
-        #     velocity_action_repeat=self._velocity_action_repeat,
-        #     max_steps=self._max_blocking_pos_move_steps,
-        # )
-
         if count_step:
             self._env_step_counter += 1
 
@@ -341,7 +329,55 @@ class BaseBitouchTactileEnv(gym.Env):
             self.step_sim()
 
 
+    def get_two_robots_current_states(self):
+        # Robot_0 pose in world and work frames.
+        self.cur_tcp_pose_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_pose()
+        self.cur_tcp_pose_workframe_robot_0 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_0)
+        
+        (
+            self.cur_tcp_pos_worldframe_robot_0 ,
+            self.cur_tcp_rpy_worldframe_robot_0,
+            self.cur_tcp_orn_worldframe_robot_0,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_0)
+        (
+            self.cur_tcp_pos_workframe_robot_0 ,
+            self.cur_tcp_rpy_workframe_robot_0,
+            self.cur_tcp_orn_workframe_robot_0,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_0)
 
+        # Robot_0 twist in world and work frames.
+        self.cur_tcp_vel_worldframe_robot_0 = self.embodiment_0.arm.get_tcp_vel()
+        self.cur_tcp_vel_workframe_robot_0 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_0)
+
+        # Robot_1 pose in world and work frames.
+        self.cur_tcp_pose_worldframe_robot_1 = self.embodiment_1.arm.get_tcp_pose()
+        self.cur_tcp_pose_workframe_robot_1 = self.worldframe_to_workframe(self.cur_tcp_pose_worldframe_robot_1)
+        
+        (
+            self.cur_tcp_pos_worldframe_robot_1 ,
+            self.cur_tcp_rpy_worldframe_robot_1,
+            self.cur_tcp_orn_worldframe_robot_1,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_worldframe_robot_1)
+        (
+            self.cur_tcp_pos_workframe_robot_1 ,
+            self.cur_tcp_rpy_workframe_robot_1,
+            self.cur_tcp_orn_workframe_robot_1,
+        ) = self.get_pos_rpy_orn_from_pose(self.cur_tcp_pose_workframe_robot_1)
+
+        # Robot_1 twist in world and work frames.
+        self.cur_tcp_vel_worldframe_robot_1 = self.embodiment_0.arm.get_tcp_vel()
+        self.cur_tcp_vel_workframe_robot_1 = self.worldvel_to_workvel(self.cur_tcp_vel_worldframe_robot_1)
+
+    def xy_obj_0_dist_to_obj_1(self):
+        """
+        xy L2 distance from the current obj position to the goal.
+        """
+        dist = np.linalg.norm(
+            self.cur_obj_pos_worldframe_0[:2] - self.cur_obj_pos_worldframe_1[:2]
+        )
+        # print(dist)
+        return dist
+    
     def worldframe_to_workframe(self, pose):
         return transform_eul(pose, self._workframe)
 
