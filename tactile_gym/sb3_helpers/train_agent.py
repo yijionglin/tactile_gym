@@ -17,31 +17,54 @@ from tactile_gym.sb3_helpers.custom.custom_callbacks import (
     ProgressBarManager,
 )
 from ipdb import set_trace
+import argparse
+import time
+
+parser = argparse.ArgumentParser(description="Train an agent in a tactile gym task.")
+parser.add_argument("-P", '--retrain_path', type=str, help='Retrain path.', metavar='', default=None)
+parser.add_argument("-R", '--if_retrain', type=bool, help='Retrain or not.', metavar='', default=False)
+
+args =parser.parse_args()
+
+if args.if_retrain:
+    SAVE_FRE = 1e3
+
 
 def train_agent(
     algo_name="ppo",
     env_id="edge_follow-v0",
     env_args={},
     rl_params={},
-    algo_params={}
+    algo_params={},
+    if_retrain=False,
+    retrain_path = None,
 ):
-
+    timestr = time.strftime("%Y%m%d-%H%M%S")
     # create save dir
-    save_dir = os.path.join(
+
+    model_save_dir = os.path.join(
         "saved_models/", rl_params["env_id"], algo_name, "s{}_{}".format(
+            rl_params["seed"], env_args["env_params"]["observation_mode"]),
+             "trained_models", "best_model.zip"
+    )
+    save_dir_time_stamp = os.path.join(
+        "saved_models/", rl_params["env_id"], timestr, algo_name, "s{}_{}".format(
             rl_params["seed"], env_args["env_params"]["observation_mode"])
     )
-    # make_dir(save_dir)
-    check_dir(save_dir)
-    os.makedirs(save_dir, exist_ok=True)
+    check_dir(save_dir_time_stamp)
+    os.makedirs(save_dir_time_stamp, exist_ok=True)
     # save params
-    save_json_obj(convert_json(rl_params), os.path.join(save_dir, "rl_params"))
-    save_json_obj(convert_json(algo_params), os.path.join(save_dir, "algo_params"))
-    save_json_obj(convert_json(env_args), os.path.join(save_dir, "env_args"))
+    save_json_obj(convert_json(rl_params), os.path.join(save_dir_time_stamp, "rl_params"))
+    save_json_obj(convert_json(algo_params), os.path.join(save_dir_time_stamp, "algo_params"))
+    save_json_obj(convert_json(env_args), os.path.join(save_dir_time_stamp, "env_args"))
+
+    if if_retrain:
+        if retrain_path is None:
+            retrain_path = model_save_dir
 
     # load the envs
     print(env_id)
-    env = make_training_envs(env_id, env_args, rl_params, save_dir)
+    env = make_training_envs(env_id, env_args, rl_params, save_dir_time_stamp)
     
     eval_env = make_eval_env(
         env_id,
@@ -52,23 +75,28 @@ def train_agent(
     # define callbacks
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=os.path.join(save_dir, "trained_models/"),
-        log_path=os.path.join(save_dir, "trained_models/"),
-        eval_freq=rl_params["eval_freq"],
+        best_model_save_path=os.path.join(save_dir_time_stamp, "trained_models/"),
+        log_path=os.path.join(save_dir_time_stamp, "trained_models/"),
+        eval_freq=rl_params["eval_freq"] if not if_retrain else SAVE_FRE,
         n_eval_episodes=rl_params["n_eval_episodes"],
         deterministic=True,
         render=False,
         verbose=1,
     )
 
-    plotting_callback = FullPlottingCallback(log_dir=save_dir, total_timesteps=rl_params["total_timesteps"])
-    event_plotting_callback = EveryNTimesteps(n_steps=rl_params["eval_freq"] * rl_params["n_envs"], callback=plotting_callback)
+    n_steps = rl_params["eval_freq"] * rl_params["n_envs"] if not if_retrain else SAVE_FRE * rl_params["n_envs"]
+    plotting_callback = FullPlottingCallback(log_dir=save_dir_time_stamp, total_timesteps=rl_params["total_timesteps"])
+    event_plotting_callback = EveryNTimesteps(n_steps=n_steps, callback=plotting_callback)
 
     # create the model with hyper params
     if algo_name == "ppo":
         model = PPO(rl_params["policy"], env, **algo_params, verbose=1)
+        if if_retrain:
+            model = model.load(retrain_path, env=env)
     elif algo_name == "sac":
         model = SAC(rl_params["policy"], env, **algo_params, verbose=1)
+        if if_retrain:
+            model = model.load(retrain_path, env=env)
     else:
         sys.exit("Incorrect algorithm specified: {}.".format(algo_name))
 
@@ -80,13 +108,13 @@ def train_agent(
         )
 
     # save the final model after training
-    model.save(os.path.join(save_dir, "trained_models", "final_model"))
+    model.save(os.path.join(save_dir_time_stamp, "trained_models", "final_model"))
     env.close()
     eval_env.close()
 
     # run final evaluation over 20 episodes and save a vid
     final_evaluation(
-        saved_model_dir=save_dir,
+        saved_model_dir=save_dir_time_stamp,
         n_eval_episodes=10,
         seed=None,
         deterministic=True,
@@ -114,10 +142,12 @@ if __name__ == "__main__":
 
     # import paramters
     env_args, rl_params, algo_params = import_parameters(env_id, algo_name)
+
     train_agent(
         algo_name,
         env_id,
         env_args,
         rl_params,
-        algo_params
+        algo_params,
+        if_retrain = args.if_retrain,
     )
