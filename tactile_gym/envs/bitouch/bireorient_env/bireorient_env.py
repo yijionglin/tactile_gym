@@ -199,7 +199,13 @@ class BireorientEnv(BaseBitouchObjectEnv):
         self._pb.removeBody(self.obj_id)
         if self.goal_line_id is not None:
             self._pb.removeBody(self.goal_line_id)
-        cube_urdf_id = self.np_random.randint(5,15)
+        try:
+            cube_urdf_id = self.np_random.randint(5,15)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("\n")
+            print("Using self.np_random.integers instead.")
+            cube_urdf_id = self.np_random.integers(5,15)
         object_path = "bitouch/bireorient_obj/cube_" + str(cube_urdf_id) + ".urdf"
         self.object_path = add_assets_path(object_path)
         self.obj_length = 0.01 * cube_urdf_id

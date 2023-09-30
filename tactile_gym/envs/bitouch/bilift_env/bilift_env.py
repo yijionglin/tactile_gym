@@ -204,8 +204,14 @@ class BiliftEnv(BaseBitouchObjectEnv):
         can also adjust physics params here.
         """
         self._pb.removeBody(self.obj_id)
-        cube_urdf_id = self.np_random.randint(5,15)
-        # cube_urdf_id = 10
+        try:
+            cube_urdf_id = self.np_random.randint(5,15)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("\n")
+            print("Using self.np_random.integers instead.")
+            cube_urdf_id = self.np_random.integers(5,15)
+
         object_path = "bitouch/bilift_obj/cube_" + str(cube_urdf_id) + ".urdf"
         self.object_path = add_assets_path(object_path)
         self.obj_length = 0.01 * cube_urdf_id
@@ -335,7 +341,14 @@ class BiliftEnv(BaseBitouchObjectEnv):
         of the traj mapping.
         """
         # initialise noise
-        simplex_noise = OpenSimplex(seed=self.np_random.randint(1e8))
+        try:
+            seed=self.np_random.randint(1e8)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("\n")
+            print("Using self.np_random.integers instead.")
+            seed=self.np_random.integers(1e8)
+        simplex_noise = OpenSimplex(seed=seed)
         init_offset_x = 0
         init_offset_y = 0
         init_offset_z =  self.obj_height/2
@@ -356,8 +369,17 @@ class BiliftEnv(BaseBitouchObjectEnv):
         of the traj mapping.
         """
         # initialise noise
-        simplex_noise = OpenSimplex(seed=self.np_random.randint(1e8))
-        simplex_noise_0 = OpenSimplex(seed=self.np_random.randint(1e8))
+        try:
+            seed0=self.np_random.randint(1e8)
+            seed1=self.np_random.randint(1e8)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("\n")
+            print("Using self.np_random.integers instead.")
+            seed0=self.np_random.integers(1e8)
+            seed1=self.np_random.integers(1e8)
+        simplex_noise = OpenSimplex(seed=seed0)
+        simplex_noise_0 = OpenSimplex(seed=seed1)
         init_offset_x = 0
         init_offset_y = 0
         init_offset_z =  self.obj_height/2

@@ -245,7 +245,14 @@ class BipushEnv(BaseBitouchObjectEnv):
         Generates smooth trajectory of goals
         """
         # initialise noise
-        simplex_noise = OpenSimplex(seed=self.np_random.randint(1e8))
+        try:
+            seed=self.np_random.randint(1e8)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("\n")
+            print("Using self.np_random.integers instead.")
+            seed=self.np_random.integers(1e8)
+        simplex_noise = OpenSimplex(seed=seed)
         init_offset_x = self.basic_init_object_goal_offset_x + self.obj_height / 2 + self.traj_spacing
         init_offset_y = self.basic_init_object_goal_offset_y
         # generate smooth 1d traj using opensimplex
