@@ -1,6 +1,6 @@
 import os, sys
 import numpy as np
-from tactile_gym.assets import add_assets_path
+from tactile_gym.assets import add_assets_path, add_data_save_path
 from tactile_gym.envs.bitouch.bipush_env.poses import (
     rest_poses_dict,
     EEs_poses_sets,
@@ -235,8 +235,10 @@ class BipushEnv(BaseBitouchObjectEnv):
             self._pb.changeVisualShape(self.traj_ids[i], -1, rgbaColor=[0, 1, 0, 0.5])
         traj_idx = int(self.reset_counter / 2)
         if self.save_traj_flag:
-            np.save('/home/bourne/it_tg_py38_sac/tactile_gym_dev/tactile_gym/sb3_helpers/collected_data/traj_pos_{}.npy'.format(traj_idx), self.traj_pos_workframe)
-            np.save('/home/bourne/it_tg_py38_sac/tactile_gym_dev/tactile_gym/sb3_helpers/collected_data/traj_rpy_{}.npy'.format(traj_idx), self.traj_rpy_workframe)
+            pos_save_path = add_data_save_path('sb3_helpers/collected_data/traj_pos_{}.npy'.format(traj_idx))
+            rpy_save_path = add_data_save_path('sb3_helpers/collected_data/traj_rpy_{}.npy'.format(traj_idx))
+            np.save(pos_save_path, self.traj_pos_workframe)
+            np.save(rpy_save_path, self.traj_rpy_workframe)
 
     def update_trajectory_simplex(self):
         """

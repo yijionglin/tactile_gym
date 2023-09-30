@@ -1,7 +1,6 @@
 numpy
 matplotlib
 six
-tqpm
 opencv-python>=4.5.1
 pybullet>=3.1.0
 stable_baselines3==1.2.0

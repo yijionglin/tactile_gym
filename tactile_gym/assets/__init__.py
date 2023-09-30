@@ -9,3 +9,6 @@ def get_assets_path():
 
 def add_assets_path(path):
     return os.path.join(_ROOT, path)
+
+def add_data_save_path(path):
+    return os.path.join(_ROOT, path)
