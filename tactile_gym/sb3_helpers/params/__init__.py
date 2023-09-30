@@ -64,8 +64,8 @@ def import_parameters(env_name, algo_name):
             rl_params_sac,
             sac_params,
         )
-    elif env_name == "bitouch_object_lift-v0":
-        from tactile_gym.sb3_helpers.params.bitouch_object_lift_params import (
+    elif env_name == "bireorient-v0":
+        from tactile_gym.sb3_helpers.params.bireorient_params import (
             env_args,
             rl_params_ppo,
             ppo_params,
@@ -82,6 +82,14 @@ def import_parameters(env_name, algo_name):
         )
     elif env_name == "bipush-v0":
         from tactile_gym.sb3_helpers.params.bipush_params import (
+            env_args,
+            rl_params_ppo,
+            ppo_params,
+            rl_params_sac,
+            sac_params,
+        )
+    elif env_name == "bilift-v0":
+        from tactile_gym.sb3_helpers.params.bilift_params import (
             env_args,
             rl_params_ppo,
             ppo_params,

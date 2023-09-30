@@ -55,7 +55,7 @@ rl_params_ppo = {
     "total_timesteps": int(1e6),
     "n_eval_episodes": 10,
     "n_envs": 10,
-    "eval_freq": 2e3,
+    "eval_freq": 1e4,
     "norm_obs": False,
     "norm_reward": False,
 }

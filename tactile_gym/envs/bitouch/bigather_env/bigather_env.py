@@ -68,7 +68,7 @@ class BigatherEnv(BaseBitouchObjectEnv):
         visual_sensor_params["dist"] = 1.5
         visual_sensor_params["yaw"] = 90.0
         visual_sensor_params["pitch"] = -60
-        visual_sensor_params["pos"] = [-0.55, 0.0, -0.85]
+        visual_sensor_params["pos"] = [-0.42, 0.0, -0.65]
         visual_sensor_params["fov"] = 75.0
         visual_sensor_params["near_val"] = 0.1
         visual_sensor_params["far_val"] = 100.0
@@ -243,11 +243,11 @@ class BigatherEnv(BaseBitouchObjectEnv):
         self._pb.removeBody(self.obj_id_0)
         self._pb.removeBody(self.obj_id_1)
 
-        self.if_apply_force_perturbation = self.np_random.choice([True])
+        self.if_apply_force_perturbation = self.np_random.choice([True, False, False])
         if self.if_apply_force_perturbation:
             self.per_direcction_for_obj_1 = self.np_random.choice([-1, 1, None])
             self.per_direcction_for_obj_0 = self.np_random.choice([-1, 1, None])
-            self.stop_apply_force_pert_dist = self.np_random.uniform(0.17, 0.20)
+            self.stop_apply_force_pert_dist = self.np_random.uniform(0.18, 0.21)
             self.apply_pert_prob = self.np_random.uniform(0.005, 0.01)
 
     def full_reset(self):
@@ -663,10 +663,10 @@ class BigatherEnv(BaseBitouchObjectEnv):
 
     def apply_perturbation_for_objs(self):
         if self.np_random.rand() < self.apply_pert_prob:
-            force_mag=np.random.uniform(low = 6, high = 10)
+            force_mag=np.random.uniform(low = 1, high = 5)
             self.apply_random_force_base_for_obj_0(force_mag=force_mag)
         if self.np_random.rand() < self.apply_pert_prob:
-            force_mag=np.random.uniform(low = 6, high = 10)
+            force_mag=np.random.uniform(low = 1, high = 5)
             self.apply_random_force_base_for_obj_1(force_mag=force_mag)
 
     def xyz_obj_scp_dist_to_tcp(self):

@@ -1,7 +1,7 @@
 import os, sys
 import numpy as np
 from tactile_gym.assets import add_assets_path
-from tactile_gym.envs.bitouch.bitouch_object_lift.poses import (
+from tactile_gym.envs.bitouch.bireorient_env.poses import (
     rest_poses_dict,
     EEs_poses_sets,
 )
@@ -9,7 +9,7 @@ from tactile_gym.envs.bitouch.base_bitouch_object_env import BaseBitouchObjectEn
 import cv2
 from ipdb import set_trace
 
-class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
+class BireorientEnv(BaseBitouchObjectEnv):
     def __init__(
         self,
         env_params={},
@@ -68,12 +68,12 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
         visual_sensor_params["dist"] = 1.5
         visual_sensor_params["yaw"] = 90.0
         visual_sensor_params["pitch"] = -60
-        visual_sensor_params["pos"] = [-0.55, 0.0, -0.85]
+        visual_sensor_params["pos"] = [-0.42, 0.0, -0.65]
         visual_sensor_params["fov"] = 75.0
         visual_sensor_params["near_val"] = 0.1
         visual_sensor_params["far_val"] = 100.0
 
-        super(BitouchObjectLiftEnv, self).__init__(env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params)
+        super(BireorientEnv, self).__init__(env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params)
         a_dim = int(len(robot_arm_params['control_dofs'])/2)
         self.movement_mode = ''.join(robot_arm_params['control_dofs'][:a_dim])
         
@@ -292,11 +292,10 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
             )
             # convert worldframe
             pose_worldframe = self.workframe_to_worldframe(
-                np.array([x for x in self.traj_pos_workframe[i]] + [x for x in self.traj_rpy_workframe[i]]) 
-                )
-            pos_worldframe = pose_worldframe[:3]
-            rpy_worldframe = pose_worldframe[3:]
-            orn_worldframe = self._pb.getQuaternionFromEuler(rpy_worldframe)
+                np.array([*self.traj_pos_workframe[i], *self.traj_rpy_workframe[i]])
+            )
+            pos_worldframe, rpy_worldframe, orn_worldframe = self.get_pos_rpy_orn_from_pose(pose_worldframe)
+
             # place goal
             self._pb.resetBasePositionAndOrientation(
                 self.traj_ids[i], pos_worldframe, orn_worldframe
@@ -774,15 +773,17 @@ class BitouchObjectLiftEnv(BaseBitouchObjectEnv):
 
     def get_extended_feature_array(self):
         # get sim info on TCP
-        tcp_pos_workframe_robot_0 = self.cur_tcp_pos_workframe_robot_0
-        tcp_rpy_workframe_robot_0 = self.cur_tcp_rpy_workframe_robot_0
-        tcp_pos_workframe_robot_1 = self.cur_tcp_pos_workframe_robot_1
-        tcp_rpy_workframe_robot_1 = self.cur_tcp_rpy_workframe_robot_1
         obj_pos_workframe, obj_rpy_workframe, _ = self.get_obj_pos_rpy_orn_workframe()
         obj_xy_pos_workframe = obj_pos_workframe[:2]
         obj_Rz_workframe = obj_rpy_workframe[2]
         obj_xy_pos_workframe *= self.if_use_obj_xy_info
         obj_Rz_workframe *= self.if_use_obj_Rz_info
+
+        tcp_pos_workframe_robot_0 = self.cur_tcp_pos_workframe_robot_0
+        tcp_rpy_workframe_robot_0 = self.cur_tcp_rpy_workframe_robot_0
+        tcp_pos_workframe_robot_1 = self.cur_tcp_pos_workframe_robot_1
+        tcp_rpy_workframe_robot_1 = self.cur_tcp_rpy_workframe_robot_1
+
         tcp_xy_pos_workframe_robot = tcp_pos_workframe_robot_0[:2]
         tcp_Rz_workframe_robot = tcp_rpy_workframe_robot_0[2]
         tcp_xy_pos_workframe_robot_1 = tcp_pos_workframe_robot_1[:2]

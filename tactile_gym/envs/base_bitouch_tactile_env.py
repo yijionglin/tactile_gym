@@ -54,7 +54,7 @@ class BaseBitouchTactileEnv(gym.Env):
 
         # set vars for full pybullet reset to clear cache
         self.reset_counter = 0
-        self.reset_limit = 100
+        self.reset_limit = 1000000
 
         self.if_bitouch = if_bitouch
 

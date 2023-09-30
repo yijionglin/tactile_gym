@@ -45,8 +45,12 @@ register(
     entry_point='tactile_gym.envs.bitouch.bipush_env.bipush_env:BipushEnv',
 )
 
+register(
+    id='bireorient-v0',
+    entry_point='tactile_gym.envs.bitouch.bireorient_env.bireorient_env:BireorientEnv',
+)
 
 register(
-    id='bitouch_object_lift-v0',
-    entry_point='tactile_gym.envs.bitouch.bitouch_object_lift.bitouch_object_lift_env:BitouchObjectLiftEnv',
+    id='bilift-v0',
+    entry_point='tactile_gym.envs.bitouch.bilift_env.bilift_env:BiliftEnv',
 )

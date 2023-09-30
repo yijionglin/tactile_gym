@@ -11,21 +11,23 @@ env_args["env_params"]["observation_mode"] = "tactile_and_feature"
 # env_args["env_params"]["observation_mode"] = "visual_and_feature"
 # env_args["env_params"]["observation_mode"] = "visuotactile_and_feature"
 env_args["env_params"]["rand_obj_mass"] = False
-env_args["env_params"]["traj_type"] = "rotation_only"
+env_args["env_params"]["rand_init_orn"] = False
+env_args["env_params"]["t_s_fric_rdn"] = False
+env_args["env_params"]["t_s_damp_rdn"] = False
+env_args["env_params"]["traj_type"] = "mix_trajs"
 
 
 
 
 env_args["robot_arm_params"]["control_mode"] = "tcp_velocity_control"
-env_args["robot_arm_params"]["control_dofs"] = ["Tx", "Ty", "Rz", "Tx", "Ty", "Rz"]
+env_args["robot_arm_params"]["control_dofs"] = ["x", "x"]
 
-rl_params_ppo["env_id"] = "bitouch_object_lift-v0"
-rl_params_ppo["total_timesteps"] = int(1e6)
+rl_params_ppo["env_id"] = "bilift-v0"
+rl_params_ppo["total_timesteps"] = int(3e6)
 ppo_params["learning_rate"] = 3e-4
 
-rl_params_sac["env_id"] = "bitouch_object_lift-v0"
+rl_params_sac["env_id"] = "bilift-v0"
 rl_params_sac["total_timesteps"] = int(1e6)
 sac_params["learning_rate"] = 3e-4
 
 env_args["tactile_sensor_params"]["type"] = "mini_right_angle_inner_tactip"
-# env_args["tactile_sensor_params"]["type"] = "right_angle_tactip"
