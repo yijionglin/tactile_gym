@@ -69,7 +69,7 @@ class BipushEnv(BaseBitouchObjectEnv):
         visual_sensor_params["dist"] = 1.5
         visual_sensor_params["yaw"] = 90.0
         visual_sensor_params["pitch"] = -60
-        visual_sensor_params["pos"] = [-0.67, 0.0, -0.85]
+        visual_sensor_params["pos"] = [-0.42, 0.0, -0.65]
         visual_sensor_params["fov"] = 75.0
         visual_sensor_params["near_val"] = 0.1
         visual_sensor_params["far_val"] = 100.0
