@@ -249,7 +249,6 @@ class BipushEnv(BaseBitouchObjectEnv):
             seed=self.np_random.randint(1e8)
         except AttributeError as e:
             print(f"AttributeError: {e}")
-            print("\n")
             print("Using self.np_random.integers instead.")
             seed=self.np_random.integers(1e8)
         simplex_noise = OpenSimplex(seed=seed)

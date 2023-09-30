@@ -205,12 +205,11 @@ class BiliftEnv(BaseBitouchObjectEnv):
         """
         self._pb.removeBody(self.obj_id)
         try:
-            cube_urdf_id = self.np_random.randint(5,15)
+            cube_urdf_id = self.np_random.integers(5,15)
         except AttributeError as e:
             print(f"AttributeError: {e}")
-            print("\n")
-            print("Using self.np_random.integers instead.")
-            cube_urdf_id = self.np_random.integers(5,15)
+            print("Using self.np_random.randint instead.")
+            cube_urdf_id = self.np_random.randint(5,15)
 
         object_path = "bitouch/bilift_obj/cube_" + str(cube_urdf_id) + ".urdf"
         self.object_path = add_assets_path(object_path)
@@ -342,12 +341,12 @@ class BiliftEnv(BaseBitouchObjectEnv):
         """
         # initialise noise
         try:
-            seed=self.np_random.randint(1e8)
+            seed=self.np_random.integers(1e8)
         except AttributeError as e:
             print(f"AttributeError: {e}")
-            print("\n")
-            print("Using self.np_random.integers instead.")
-            seed=self.np_random.integers(1e8)
+            print("Using self.np_random.randint instead.")
+            seed=self.np_random.randint(1e8)
+
         simplex_noise = OpenSimplex(seed=seed)
         init_offset_x = 0
         init_offset_y = 0
@@ -370,14 +369,14 @@ class BiliftEnv(BaseBitouchObjectEnv):
         """
         # initialise noise
         try:
-            seed0=self.np_random.randint(1e8)
-            seed1=self.np_random.randint(1e8)
-        except AttributeError as e:
-            print(f"AttributeError: {e}")
-            print("\n")
-            print("Using self.np_random.integers instead.")
             seed0=self.np_random.integers(1e8)
             seed1=self.np_random.integers(1e8)
+        except AttributeError as e:
+            print(f"AttributeError: {e}")
+            print("Using self.np_random.randint instead.")
+            seed0=self.np_random.randint(1e8)
+            seed1=self.np_random.randint(1e8)
+
         simplex_noise = OpenSimplex(seed=seed0)
         simplex_noise_0 = OpenSimplex(seed=seed1)
         init_offset_x = 0

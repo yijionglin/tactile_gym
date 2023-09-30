@@ -4,9 +4,5 @@ six
 opencv-python>=4.5.1
 pybullet>=3.1.0
 stable_baselines3==1.2.0
-torch==1.8.1
-torch-geometric==2.0.4
-torchaudio==0.8.1
-torchvision==0.9.1
 opensimplex==0.3
 gym==0.18.3

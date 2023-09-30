@@ -182,12 +182,12 @@ class BaseSurfaceEnv(BaseTactileEnv):
         """
         # set seed for simplex noise
         try:
-            seed=self.np_random.randint(1e8)
+            seed=self.np_random.integers(1e8)
         except AttributeError as e:
             print(f"AttributeError: {e}")
-            print("\n")
-            print("Using self.np_random.integers instead.")
-            seed=self.np_random.integers(1e8)
+            print("Using self.np_random.randint instead.")
+            seed=self.np_random.randint(1e8)
+
         self.simplex_noise = OpenSimplex(seed=seed)
         self.heightfield_data = self.gen_simplex_heigtfield()
 

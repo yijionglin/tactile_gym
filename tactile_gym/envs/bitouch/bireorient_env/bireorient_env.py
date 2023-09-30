@@ -203,7 +203,6 @@ class BireorientEnv(BaseBitouchObjectEnv):
             cube_urdf_id = self.np_random.randint(5,15)
         except AttributeError as e:
             print(f"AttributeError: {e}")
-            print("\n")
             print("Using self.np_random.integers instead.")
             cube_urdf_id = self.np_random.integers(5,15)
         object_path = "bitouch/bireorient_obj/cube_" + str(cube_urdf_id) + ".urdf"

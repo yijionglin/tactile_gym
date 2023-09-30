@@ -74,12 +74,12 @@ def main():
     # set seed for deterministic results
     env.seed(seed)
     try:
-        env.action_space.np_random.seed(seed)
+        env.action_space.seed(seed)
     except AttributeError as e:
         print(f"AttributeError: {e}")
-        print("\n")
         print("Using env.action_space.seed(seed) instead.")
-        env.action_space.seed(seed)
+        env.action_space.np_random.seed(seed)
+
     # create controllable parameters on GUI
     min_action, max_action = env.min_action, env.max_action
     action_ids = [pb.addUserDebugParameter(control_dof, min_action, max_action, 0)
