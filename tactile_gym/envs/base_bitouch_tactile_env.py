@@ -20,7 +20,7 @@ joint_action_mapping = {
     'J7': 6,
 }
 
-
+_FASTER_MODE = True
 class BaseBitouchTactileEnv(gym.Env):
     def __init__(self, env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params, if_bitouch=True):
 
@@ -230,7 +230,11 @@ class BaseBitouchTactileEnv(gym.Env):
         Encode actions, send to embodiment to be applied to the environment.
         Return observation, reward, terminal, info
         """
-        self.step_bi_touch(action)
+        if _FASTER_MODE:
+            self.step_bi_touch_fast(action)
+        else:
+            self.step_bi_touch(action)
+            
         reward, done = self.get_step_data()
         self._observation = self.get_observation()
         return self._observation, reward, done, {}
@@ -309,6 +313,71 @@ class BaseBitouchTactileEnv(gym.Env):
             embodiment.arm.blocking_velocity_move(blocking_steps=velocity_action_repeat)
         else:
             self.step_sim()
+
+    def step_bi_touch_fast(self, actions, count_step=True):
+        # act
+        # self.task_callback()
+        if self.act_dim == 6:
+            actions_list = [actions[:3], actions[3:6]]
+        elif self.act_dim == 4:
+            actions_list = [actions[:2], actions[2:4]]
+        elif self.act_dim ==2 :
+            actions_list = [actions[0], actions[1]]
+        else:
+            assert ("Movement mode not implement yet",self.movement_mode)
+        embodiments_list = [self.embodiment_0, self.embodiment_1]
+        target_vels_list = []
+        # scale and embed actions appropriately
+        for embodiment, act in zip(embodiments_list, actions_list):
+            encoded_action = self.encode_actions(act, embodiment)
+            scaled_action = self.scale_actions(encoded_action)
+            if self._robot_arm_params["control_mode"] == "tcp_velocity_control":
+                clipped_action = self.check_TCP_vel_lims(embodiment, scaled_action)
+                target_vel = self.workvel_to_worldvel(clipped_action)
+                target_vels_list.append(target_vel)
+            else:
+                assert ("Control mode not implement yet for Bi-Touch:",self._robot_arm_params["control_mode"])
+            # print("actions:", act)
+            # print("encoded_action:", encoded_action)
+            # print("scaled_action:", scaled_action)
+            # print("clipped_action:", clipped_action)
+        self.apply_action_bitouch(
+            motor_commands = target_vels_list,
+            control_mode=self._robot_arm_params["control_mode"],
+            velocity_action_repeat=self._velocity_action_repeat,
+        )
+        
+        if count_step:
+            self._env_step_counter += 1
+
+        reward, done = self.get_step_data()
+
+        self._observation = self.get_observation()
+
+        # can be helpful when debugging
+        # self.render()
+        # time.sleep(0.01)
+        return self._observation, reward, done, {}
+
+    def apply_action_bitouch(
+        self,
+        motor_commands,
+        velocity_action_repeat = 1,
+        control_mode="tcp_velocity_control",
+    ):
+        # set the simulation with desired control points
+        if control_mode == "tcp_velocity_control":
+            self.embodiment_0.arm.set_target_tcp_velocities(motor_commands[0])
+            self.embodiment_1.arm.set_target_tcp_velocities(motor_commands[1])
+        else:
+            sys.exit("Incorrect control mode specified: {}".format(control_mode))
+        self.apply_step_sim_velocity_move(velocity_action_repeat)
+
+    def apply_step_sim_velocity_move(self, velocity_action_repeat = 1):
+        for i in range(velocity_action_repeat):
+            self.embodiment_0.arm.apply_gravity_compensation()
+            self.embodiment_1.arm.apply_gravity_compensation()
+            self._pb.stepSimulation()
 
 
     def get_two_robots_current_states(self):

@@ -165,8 +165,8 @@ if __name__ == "__main__":
     # env_id = 'object_push-v0'
     # env_id = 'object_balance-v0'
     # env_id = 'bireorient-v0'
-    env_id = 'bilift-v0'
-    # env_id = 'bigather-v0'
+    # env_id = 'bilift-v0'
+    env_id = 'bigather-v0'
     # env_id = 'bipush-v0'
 
     # obs_type = 's1_oracle'
