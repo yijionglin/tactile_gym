@@ -14,7 +14,8 @@ env_args["env_params"]["rand_obj_mass"] = False
 env_args["env_params"]["rand_init_orn"] = False
 env_args["env_params"]["t_s_fric_rdn"] = False
 env_args["env_params"]["t_s_damp_rdn"] = False
-env_args["env_params"]["traj_type"] = "mix_trajs"
+# env_args["env_params"]["traj_type"] = "mix_trajs"
+env_args["env_params"]["traj_type"] = "simplex"
 
 
 

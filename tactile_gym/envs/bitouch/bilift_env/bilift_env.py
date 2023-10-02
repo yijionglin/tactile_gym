@@ -86,10 +86,10 @@ class BiliftEnv(BaseBitouchObjectEnv):
         visual_sensor_params["near_val"] = 0.1
         visual_sensor_params["far_val"] = 100.0
 
-        super(BiliftEnv, self).__init__(env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params)
         a_dim = int(len(robot_arm_params['control_dofs'])/2)
         self.movement_mode = ''.join(robot_arm_params['control_dofs'][:a_dim])
-        
+        super(BiliftEnv, self).__init__(env_params, robot_arm_params, tactile_sensor_params, visual_sensor_params)
+
     def load_goal_line(self):
         self.goal_line_id = self._pb.loadURDF(
             self.goal_line_path, self.init_obj_pos, self.init_obj_orn, useFixedBase=True

@@ -82,7 +82,7 @@ Demonstration files are provided in the example directory. From the base directo
 python examples/demo_env.py -env example_arm-v0
 ```
 
-alternate envs can be specified but setting the `-env` argurment to any of the following: `example_arm-v0` `edge_follow-v0` `surface_follow-v0` `object_roll-v0` `object_push-v0` `object_balance-v0`.
+alternate envs can be specified but setting the `-env` argurment to any of the following: `example_arm-v0`, `edge_follow-v0`, `surface_follow-v0`, `object_roll-v0`, `object_push-v0`, `object_balance-v0`, `bipush-v0`, `bigather-v0`, `bireorient-v0`, `bilift-v0`.
 
 Usage: You can specify a desired robot arm and a tactile sensor and other environment parameters within the `demo_env.py` file.
 
